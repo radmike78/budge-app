@@ -94,13 +94,16 @@ export interface WeekdayWords {
   /** Optional neutral prefixes ("on", "this", "el", "le"). */
   prefixes?: string[];
   boundaries?: boolean;
+  /** CJK: no whitespace between the "last" marker and the day name. */
+  noSpace?: boolean;
 }
 
 export function weekdayRule(w: WeekdayWords): DateRule {
   const names = alt(Object.keys(w.names));
-  const before = w.lastBefore?.length ? `(${alt(w.lastBefore)})\\s+` : '()';
-  const after = w.lastAfter?.length ? `(?:\\s+(${alt(w.lastAfter)}))?` : '()';
-  const prefix = w.prefixes?.length ? `(?:(?:${alt(w.prefixes)})\\s+)?` : '';
+  const sp = w.noSpace ? '\\s*' : '\\s+';
+  const before = w.lastBefore?.length ? `(${alt(w.lastBefore)})${sp}` : '()';
+  const after = w.lastAfter?.length ? `(?:${sp}(${alt(w.lastAfter)}))?` : '()';
+  const prefix = w.prefixes?.length ? `(?:(?:${alt(w.prefixes)})${sp})?` : '';
   const b = w.boundaries ?? true;
   const body = `${prefix}(?:${before})?(${names})${after}`;
   return {

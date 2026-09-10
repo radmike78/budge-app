@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { radius, spacing, useTheme } from '@/theme';
 import { useVoiceInput } from '@/lib/speech';
+import { useT } from '@/i18n';
 import { Text } from './ui';
 
 /**
@@ -12,6 +13,7 @@ import { Text } from './ui';
  */
 export function EntryBar({ onSubmit, busy, autoFocus }: { onSubmit: (text: string) => void; busy?: boolean; autoFocus?: boolean }) {
   const { colors } = useTheme();
+  const t = useT();
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
   const voice = useVoiceInput((final) => {
@@ -24,10 +26,10 @@ export function EntryBar({ onSubmit, busy, autoFocus }: { onSubmit: (text: strin
   }, [voice.listening, voice.transcript]);
 
   const send = () => {
-    const t = text.trim();
-    if (!t) return;
+    const value = text.trim();
+    if (!value) return;
     setText('');
-    onSubmit(t);
+    onSubmit(value);
   };
 
   const toggleMic = async () => {
@@ -39,8 +41,6 @@ export function EntryBar({ onSubmit, busy, autoFocus }: { onSubmit: (text: strin
       await voice.start();
     }
   };
-
-  const showMic = voice.available;
 
   return (
     <View>
@@ -54,20 +54,20 @@ export function EntryBar({ onSubmit, busy, autoFocus }: { onSubmit: (text: strin
           blurOnSubmit
           autoFocus={autoFocus}
           editable={!voice.listening && !busy}
-          placeholder={voice.listening ? 'Listening…' : 'spent 12 on lunch'}
+          placeholder={voice.listening ? t.listening : t.entryPlaceholder}
           placeholderTextColor={colors.faint}
-          accessibilityLabel="Entry text"
+          accessibilityLabel={t.entryText}
           style={[styles.input, { color: colors.text }]}
         />
         {text.trim().length > 0 && !voice.listening ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Add entry" onPress={send} style={[styles.sendBtn, { backgroundColor: colors.accentSoft }]}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t.addEntry} onPress={send} style={[styles.sendBtn, { backgroundColor: colors.accentSoft }]}>
             <Ionicons name="arrow-up" size={22} color={colors.accent} />
           </Pressable>
         ) : null}
-        {showMic ? (
+        {voice.available ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={voice.listening ? 'Stop listening' : 'Speak an entry'}
+            accessibilityLabel={voice.listening ? t.stopListening : t.speakEntry}
             onPress={toggleMic}
             disabled={busy}
             style={({ pressed }) => [styles.mic, { backgroundColor: voice.listening ? colors.danger : colors.accent, opacity: pressed ? 0.85 : 1 }]}
@@ -77,13 +77,13 @@ export function EntryBar({ onSubmit, busy, autoFocus }: { onSubmit: (text: strin
         ) : null}
       </View>
       {voice.listening ? (
-        <Text variant="small" style={{ marginTop: 6, marginLeft: 4 }}>Listening{voice.onDevice ? ' (on device)' : ''}. Tap stop when you're done.</Text>
+        <Text variant="small" style={{ marginTop: 6, marginLeft: 4 }}>{t.listeningHint(voice.onDevice)}</Text>
       ) : voice.error ? (
         <Pressable onPress={voice.clearError}><Text variant="small" color={colors.danger} style={{ marginTop: 6, marginLeft: 4 }}>{voice.error}</Text></Pressable>
       ) : busy ? (
-        <Text variant="small" style={{ marginTop: 6, marginLeft: 4 }}>Checking that one…</Text>
+        <Text variant="small" style={{ marginTop: 6, marginLeft: 4 }}>{t.checking}</Text>
       ) : (
-        <Text variant="small" style={{ marginTop: 6, marginLeft: 4 }}>Try "got paid 2400" or "goal: save 500 for a trip by December".</Text>
+        <Text variant="small" style={{ marginTop: 6, marginLeft: 4 }}>{t.tryHint}</Text>
       )}
     </View>
   );

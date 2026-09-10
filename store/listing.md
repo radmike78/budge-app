@@ -30,6 +30,7 @@ OnlyBudget works out the amount, whether it's money in or out, the category and 
 - Searchable history, by category, date and type
 - Export to CSV, a readable summary, or a full backup. Passphrase-encrypted backups you can keep in your own cloud drive
 - Light and dark themes
+- Works in English, Spanish, French, Italian, German, Chinese, Japanese and Korean, including the voice entry
 
 **What you never get**
 - Bank linking. Not now, not later, not as an upgrade. OnlyBudget never asks for bank credentials.
@@ -41,6 +42,9 @@ OnlyBudget works out the amount, whether it's money in or out, the category and 
 Speech is turned into text by your phone's own recognizer. On devices that support it, recognition runs on the device and audio never leaves the phone.
 
 OnlyBudget is for people who want awareness and control over their spending without handing bank credentials to a third party, and who find most budgeting apps either too complex or too automated to trust.
+
+## Localizations
+en, es, fr, it, de, zh-Hans, ja, ko. Store copy above is the English source; translate per locale before submission.
 
 ## Keywords (App Store, 100 chars)
 budget,expense tracker,spending,voice,manual budget,offline,private,savings goal,no bank,money

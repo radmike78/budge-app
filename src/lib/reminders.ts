@@ -7,7 +7,7 @@ const REMINDER_ID = 'onlybudget-daily-reminder';
  * One optional, gentle daily reminder. Never a badge, never a streak.
  * Returns false if permission was not granted.
  */
-export async function scheduleDailyReminder(hour: number): Promise<boolean> {
+export async function scheduleDailyReminder(hour: number, text: { title: string; body: string } = { title: 'Anything to log today?', body: 'A quick "spent 12 on lunch" keeps the picture honest.' }): Promise<boolean> {
   const perm = await Notifications.getPermissionsAsync();
   let granted = perm.granted;
   if (!granted) {
@@ -29,8 +29,8 @@ export async function scheduleDailyReminder(hour: number): Promise<boolean> {
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
     content: {
-      title: 'Anything to log today?',
-      body: 'A quick "spent 12 on lunch" keeps the picture honest.',
+      title: text.title,
+      body: text.body,
       sound: false,
     },
     trigger: {

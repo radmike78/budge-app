@@ -8,29 +8,33 @@ import { spacing, useTheme } from '@/theme';
 import { CURRENCIES, currencyInfo } from '@/lib/money';
 import { cancelDailyReminder, scheduleDailyReminder } from '@/lib/reminders';
 import { triggerOfflineModelDownload } from '@/lib/speech';
+import { LANGUAGE_OPTIONS, useLanguageCode, useT } from '@/i18n';
 import { Sheet } from '@/components/pickers';
 import { Button, Card, ListItem, Row, Screen, SectionTitle, Segmented, Text } from '@/components/ui';
 
 function hourLabel(h: number): string {
-  const suffix = h >= 12 ? 'pm' : 'am';
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:00 ${suffix}`;
+  return `${h < 10 ? '0' : ''}${h}:00`;
 }
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const t = useT();
+  const languageCode = useLanguageCode();
   const settings = useAppStore((s) => s.settings);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const keywords = useAppStore((s) => s.keywords);
   const [showCurrency, setShowCurrency] = useState(false);
+  const [showLanguage, setShowLanguage] = useState(false);
   if (!settings) return null;
+
+  const reminderText = { title: t.reminderTitle, body: t.reminderBody };
 
   const toggleReminder = async (on: boolean) => {
     if (on) {
-      const ok = await scheduleDailyReminder(settings.reminderHour);
+      const ok = await scheduleDailyReminder(settings.reminderHour, reminderText);
       if (!ok) {
-        Alert.alert('Notifications are off', 'Turn them on for OnlyBudget in your phone settings if you want a daily nudge.');
+        Alert.alert(t.notificationsOff, t.notificationsOffBody);
         return;
       }
     } else {
@@ -42,30 +46,32 @@ export default function SettingsScreen() {
   const changeHour = async (delta: number) => {
     const hour = (settings.reminderHour + delta + 24) % 24;
     await updateSettings({ reminderHour: hour });
-    if (settings.reminderEnabled) await scheduleDailyReminder(hour);
+    if (settings.reminderEnabled) await scheduleDailyReminder(hour, reminderText);
   };
 
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const languageLabel = settings.language === 'system' ? `${t.systemLanguage} (${LANGUAGE_OPTIONS.find((o) => o.code === languageCode)?.name ?? languageCode})` : LANGUAGE_OPTIONS.find((o) => o.code === settings.language)?.name ?? settings.language;
 
   return (
     <Screen>
-      <SectionTitle>Your data</SectionTitle>
-      <ListItem title="Backup & export" subtitle="CSV, a readable summary, or a full backup you can restore from." onPress={() => router.push('/settings/backup')} />
-      <ListItem title="Repeating entries" subtitle="Rent, salary, subscriptions." onPress={() => router.push('/recurring')} />
-      <ListItem title="Categories" subtitle="Add, rename, set optional limits, archive." onPress={() => router.push('/budget')} />
-      <ListItem title="Learned words" subtitle={keywords.length ? `${keywords.length} word${keywords.length === 1 ? '' : 's'} remembered from your corrections.` : 'Words you correct are remembered here.'} onPress={() => router.push('/settings/keywords')} />
+      <SectionTitle>{t.yourData}</SectionTitle>
+      <ListItem title={t.backupExport} subtitle={t.backupExportSub} onPress={() => router.push('/settings/backup')} />
+      <ListItem title={t.repeatingEntries} subtitle={t.repeatingEntriesSub} onPress={() => router.push('/recurring')} />
+      <ListItem title={t.categories} subtitle={t.categoriesSub} onPress={() => router.push('/budget')} />
+      <ListItem title={t.learnedWords} subtitle={t.learnedWordsSub(keywords.length)} onPress={() => router.push('/settings/keywords')} />
 
-      <SectionTitle>Preferences</SectionTitle>
-      <ListItem title="Currency" subtitle={`${currencyInfo(settings.currency).name} (${settings.currency})`} onPress={() => setShowCurrency(true)} />
+      <SectionTitle>{t.preferences}</SectionTitle>
+      <ListItem title={t.language} subtitle={languageLabel} onPress={() => setShowLanguage(true)} />
+      <ListItem title={t.currency} subtitle={`${currencyInfo(settings.currency).name} (${settings.currency})`} onPress={() => setShowCurrency(true)} />
       <Card style={{ marginBottom: spacing.sm }}>
-        <Text variant="label" style={{ marginBottom: spacing.sm }}>Appearance</Text>
-        <Segmented<ThemeSetting> value={settings.theme} onChange={(theme) => updateSettings({ theme })} options={[{ value: 'system', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
+        <Text variant="label" style={{ marginBottom: spacing.sm }}>{t.appearance}</Text>
+        <Segmented<ThemeSetting> value={settings.theme} onChange={(theme) => updateSettings({ theme })} options={[{ value: 'system', label: t.themeSystem }, { value: 'light', label: t.themeLight }, { value: 'dark', label: t.themeDark }]} />
       </Card>
       <Card style={{ marginBottom: spacing.sm }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <View style={{ flex: 1, paddingRight: spacing.md }}>
-            <Text variant="body">Daily reminder</Text>
-            <Text variant="small">One quiet nudge a day. No badges, no streaks.</Text>
+            <Text variant="body">{t.dailyReminder}</Text>
+            <Text variant="small">{t.dailyReminderSub}</Text>
           </View>
           <Switch value={settings.reminderEnabled} onValueChange={toggleReminder} trackColor={{ true: colors.accent }} />
         </Row>
@@ -78,18 +84,26 @@ export default function SettingsScreen() {
         ) : null}
       </Card>
       {Platform.OS === 'android' ? (
-        <ListItem title="Offline voice model" subtitle="Download the on-device recognizer so voice works without a connection (Android 13+)." onPress={async () => Alert.alert('Voice model', await triggerOfflineModelDownload())} />
+        <ListItem title={t.offlineVoice} subtitle={t.offlineVoiceSub} onPress={async () => Alert.alert(t.voiceModel, await triggerOfflineModelDownload(languageCode))} />
       ) : null}
-      <ListItem title="Smart parsing assist" subtitle={settings.smartParseEnabled ? 'On. Used only when the built-in parser is unsure.' : 'Off. Everything is parsed on your phone.'} onPress={() => router.push('/settings/smart')} />
+      <ListItem title={t.smartParse} subtitle={settings.smartParseEnabled ? t.smartParseOn : t.smartParseOff} onPress={() => router.push('/settings/smart')} />
 
-      <SectionTitle>About</SectionTitle>
-      <ListItem title="About OnlyBudget" subtitle="No bank linking. No ads. No tracking. Ever." onPress={() => router.push('/settings/about')} />
-      <Text variant="small" style={{ marginTop: spacing.md, textAlign: 'center' }}>OnlyBudget {version}</Text>
+      <SectionTitle>{t.about}</SectionTitle>
+      <ListItem title={t.aboutApp} subtitle={t.aboutSub} onPress={() => router.push('/settings/about')} />
+      <Text variant="small" style={{ marginTop: spacing.md, textAlign: 'center' }}>{t.appName} {version}</Text>
 
-      <Sheet visible={showCurrency} onClose={() => setShowCurrency(false)} title="Currency" tall>
+      <Sheet visible={showCurrency} onClose={() => setShowCurrency(false)} title={t.currency} tall>
         <ScrollView>
           {CURRENCIES.map((c) => (
             <ListItem key={c.code} title={`${c.symbol.trim()} ${c.name}`} subtitle={c.code} right={c.code === settings.currency ? <Text>✓</Text> : null} onPress={() => { updateSettings({ currency: c.code }); setShowCurrency(false); }} />
+          ))}
+        </ScrollView>
+      </Sheet>
+      <Sheet visible={showLanguage} onClose={() => setShowLanguage(false)} title={t.language}>
+        <ScrollView>
+          <ListItem title={t.systemLanguage} right={settings.language === 'system' ? <Text>✓</Text> : null} onPress={() => { updateSettings({ language: 'system' }); setShowLanguage(false); }} />
+          {LANGUAGE_OPTIONS.map((o) => (
+            <ListItem key={o.code} title={o.name} right={settings.language === o.code ? <Text>✓</Text> : null} onPress={() => { updateSettings({ language: o.code }); setShowLanguage(false); }} />
           ))}
         </ScrollView>
       </Sheet>

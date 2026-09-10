@@ -5,14 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
 import { currentMonthKey, monthLabel, shiftMonthKey } from '@/lib/dates';
-import { formatMoney } from '@/lib/money';
 import { categoryLineSentence, monthSummarySentence } from '@/lib/plain';
 import { monthlyEquivalent } from '@/lib/recurring';
+import { categoryName, useLocale, useMoney, useT } from '@/i18n';
 import { Button, Card, Icon, ListItem, ProgressBar, Row, Screen, SectionTitle, Text } from '@/components/ui';
 
 export default function BudgetScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const t = useT();
+  const locale = useLocale();
+  const money = useMoney();
   const settings = useAppStore((s) => s.settings);
   const stats = useAppStore((s) => s.stats);
   const month = useAppStore((s) => s.month);
@@ -39,17 +42,17 @@ export default function BudgetScreen() {
   return (
     <Screen>
       <Row style={{ justifyContent: 'space-between', marginTop: spacing.sm }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => setMonth(shiftMonthKey(month, -1))} hitSlop={12}><Ionicons name="chevron-back" size={24} color={colors.text} /></Pressable>
-        <Text variant="heading">{monthLabel(month)}</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => setMonth(shiftMonthKey(month, 1))} hitSlop={12} disabled={isCurrent} style={{ opacity: isCurrent ? 0.3 : 1 }}><Ionicons name="chevron-forward" size={24} color={colors.text} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.previousMonth} onPress={() => setMonth(shiftMonthKey(month, -1))} hitSlop={12}><Ionicons name="chevron-back" size={24} color={colors.text} /></Pressable>
+        <Text variant="heading">{monthLabel(month, locale.format)}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.nextMonth} onPress={() => setMonth(shiftMonthKey(month, 1))} hitSlop={12} disabled={isCurrent} style={{ opacity: isCurrent ? 0.3 : 1 }}><Ionicons name="chevron-forward" size={24} color={colors.text} /></Pressable>
       </Row>
 
       <Card style={{ marginTop: spacing.md }}>
-        <Text variant="body">{monthSummarySentence(stats, currency, isCurrent)}</Text>
-        {planned > 0 ? <Text variant="small" style={{ marginTop: spacing.sm }}>You've planned {formatMoney(planned, currency, { compact: true })} across categories with a limit. Limits are optional.</Text> : null}
+        <Text variant="body">{monthSummarySentence(stats, currency, isCurrent, locale)}</Text>
+        {planned > 0 ? <Text variant="small" style={{ marginTop: spacing.sm }}>{t.plannedAcross(money(planned, { compact: true }))}</Text> : null}
       </Card>
 
-      <SectionTitle right={<Button tone="ghost" small title="Add" onPress={() => router.push('/category/new?kind=expense')} />}>Spending</SectionTitle>
+      <SectionTitle right={<Button tone="ghost" small title={t.add} onPress={() => router.push('/category/new?kind=expense')} />}>{t.spending}</SectionTitle>
       {expenseCats.map((c) => {
         const spent = totals.get(c.id) ?? 0;
         const hasLimit = c.monthlyLimit != null && c.monthlyLimit > 0;
@@ -61,10 +64,10 @@ export default function BudgetScreen() {
                 <Icon glyph={c.icon} size={22} />
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   <Row style={{ justifyContent: 'space-between' }}>
-                    <Text variant="body" style={{ fontWeight: '600' }}>{c.name}</Text>
-                    <Text variant="money">{formatMoney(spent, currency, { compact: true })}</Text>
+                    <Text variant="body" style={{ fontWeight: '600' }}>{categoryName(c, t)}</Text>
+                    <Text variant="money">{money(spent, { compact: true })}</Text>
                   </Row>
-                  <Text variant="small">{categoryLineSentence(c, spent, currency)}</Text>
+                  <Text variant="small">{categoryLineSentence(c, spent, currency, locale)}</Text>
                 </View>
               </Row>
               {hasLimit ? <View style={{ marginTop: spacing.sm }}><ProgressBar fraction={fraction} tone={fraction > 1 ? 'warn' : 'accent'} /></View> : null}
@@ -73,25 +76,25 @@ export default function BudgetScreen() {
         );
       })}
 
-      <SectionTitle right={<Button tone="ghost" small title="Add" onPress={() => router.push('/category/new?kind=income')} />}>Income</SectionTitle>
+      <SectionTitle right={<Button tone="ghost" small title={t.add} onPress={() => router.push('/category/new?kind=income')} />}>{t.incomeSection}</SectionTitle>
       {incomeCats.map((c) => (
-        <ListItem key={c.id} title={c.name} left={<Icon glyph={c.icon} size={22} />} onPress={() => router.push(`/category/${c.id}`)} />
+        <ListItem key={c.id} title={categoryName(c, t)} left={<Icon glyph={c.icon} size={22} />} onPress={() => router.push(`/category/${c.id}`)} />
       ))}
 
-      <SectionTitle right={<Button tone="ghost" small title="Manage" onPress={() => router.push('/recurring')} />}>Repeating</SectionTitle>
+      <SectionTitle right={<Button tone="ghost" small title={t.manage} onPress={() => router.push('/recurring')} />}>{t.repeating}</SectionTitle>
       <Card>
         {activeRules.length === 0 ? (
-          <Text variant="muted">Rent, salary, subscriptions: set them up once and they log themselves each period.</Text>
+          <Text variant="muted">{t.repeatingEmpty}</Text>
         ) : (
-          <Text variant="body">{activeRules.length} repeating {activeRules.length === 1 ? 'entry' : 'entries'}. About {formatMoney(recurringOut, currency, { compact: true })} a month goes out automatically.</Text>
+          <Text variant="body">{t.repeatingSummary(activeRules.length, money(recurringOut, { compact: true }))}</Text>
         )}
       </Card>
 
       {archived.length > 0 ? (
         <>
-          <SectionTitle>Archived</SectionTitle>
+          <SectionTitle>{t.archived}</SectionTitle>
           {archived.map((c) => (
-            <ListItem key={c.id} title={c.name} subtitle="Archived. Tap to restore or delete." left={<Icon glyph={c.icon} size={22} />} onPress={() => router.push(`/category/${c.id}`)} />
+            <ListItem key={c.id} title={categoryName(c, t)} subtitle={t.archivedHint} left={<Icon glyph={c.icon} size={22} />} onPress={() => router.push(`/category/${c.id}`)} />
           ))}
         </>
       ) : null}

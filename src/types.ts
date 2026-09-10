@@ -62,6 +62,8 @@ export interface Settings {
   reminderHour: number;
   /** Tier 2 parsing assist (off by default; needs the user's own API key). */
   smartParseEnabled: boolean;
+  /** 'system' or a language code ('en', 'es', ...). */
+  language: string;
 }
 
 /** A learned word -> category mapping, created when the user corrects a parsed category. */

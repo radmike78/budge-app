@@ -10,6 +10,27 @@ export const MONTH_NAMES = [
 
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+/** Locale-specific names and layouts for human dates. Defaults to English. */
+export interface DateFormat {
+  months: string[];
+  monthsShort: string[];
+  weekdaysShort: string[];
+  longDate: (day: number, month: string, year: number | null) => string;
+  shortDate: (day: number, monthShort: string, weekdayShort: string | null, year: number | null) => string;
+  monthYear: (month: string, year: number) => string;
+  today?: string;
+  yesterday?: string;
+}
+
+export const EN_DATE_FORMAT: DateFormat = {
+  months: MONTH_NAMES,
+  monthsShort: MONTH_NAMES.map((m) => m.slice(0, 3)),
+  weekdaysShort: DAY_NAMES.map((d) => d.slice(0, 3)),
+  longDate: (day, month, year) => (year ? `${month} ${day}, ${year}` : `${month} ${day}`),
+  shortDate: (day, monthShort, weekdayShort, year) => (year ? `${monthShort} ${day}, ${year}` : `${weekdayShort}, ${monthShort} ${day}`),
+  monthYear: (month, year) => `${month} ${year}`,
+};
+
 function pad(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
@@ -82,14 +103,14 @@ export function shiftMonthKey(monthKeyStr: string, delta: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 }
 
-export function monthLabel(monthKeyStr: string): string {
+export function monthLabel(monthKeyStr: string, fmt: DateFormat = EN_DATE_FORMAT): string {
   const [y, m] = monthKeyStr.split('-').map(Number);
-  return `${MONTH_NAMES[m - 1]} ${y}`;
+  return fmt.monthYear(fmt.months[m - 1], y);
 }
 
-export function monthName(monthKeyStr: string): string {
+export function monthName(monthKeyStr: string, fmt: DateFormat = EN_DATE_FORMAT): string {
   const m = Number(monthKeyStr.split('-')[1]);
-  return MONTH_NAMES[m - 1];
+  return fmt.months[m - 1];
 }
 
 export function daysBetween(fromStr: string, toStr: string): number {
@@ -99,21 +120,19 @@ export function daysBetween(fromStr: string, toStr: string): number {
 }
 
 /** "Today", "Yesterday", "Mon, Sep 3", or "Sep 3, 2025" for other years. */
-export function friendlyDate(dateStr: string, todayStr: string = today()): string {
-  if (dateStr === todayStr) return 'Today';
-  if (dateStr === addDays(todayStr, -1)) return 'Yesterday';
+export function friendlyDate(dateStr: string, todayStr: string = today(), fmt: DateFormat = EN_DATE_FORMAT): string {
+  if (dateStr === todayStr) return fmt.today ?? 'Today';
+  if (dateStr === addDays(todayStr, -1)) return fmt.yesterday ?? 'Yesterday';
   const d = fromDateString(dateStr);
-  const short = `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}`;
-  if (d.getFullYear() !== fromDateString(todayStr).getFullYear()) return `${short}, ${d.getFullYear()}`;
-  return `${DAY_NAMES[d.getDay()].slice(0, 3)}, ${short}`;
+  const otherYear = d.getFullYear() !== fromDateString(todayStr).getFullYear();
+  return fmt.shortDate(d.getDate(), fmt.monthsShort[d.getMonth()], otherYear ? null : fmt.weekdaysShort[d.getDay()], otherYear ? d.getFullYear() : null);
 }
 
 /** "September 3" or "September 3, 2027" if not this year. */
-export function longDate(dateStr: string, todayStr: string = today()): string {
+export function longDate(dateStr: string, todayStr: string = today(), fmt: DateFormat = EN_DATE_FORMAT): string {
   const d = fromDateString(dateStr);
-  const base = `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
-  if (d.getFullYear() !== fromDateString(todayStr).getFullYear()) return `${base}, ${d.getFullYear()}`;
-  return base;
+  const otherYear = d.getFullYear() !== fromDateString(todayStr).getFullYear();
+  return fmt.longDate(d.getDate(), fmt.months[d.getMonth()], otherYear ? d.getFullYear() : null);
 }
 
 export function nowIso(): string {

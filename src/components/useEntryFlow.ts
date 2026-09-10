@@ -4,6 +4,8 @@ import { today } from '@/lib/dates';
 import { getApiKey } from '@/lib/secrets';
 import { parseInput, type ParseResult } from '@/parser';
 import { llmParse } from '@/parser/llmFallback';
+import { resolveLanguage } from '@/i18n';
+import { HINT } from '@/parser';
 
 /**
  * Text and voice both land here: parse (Tier 1), optionally escalate (Tier 2),
@@ -17,7 +19,7 @@ export function useEntryFlow() {
     const text = raw.trim();
     if (!text) return;
     const { categories, goals, keywordMap, settings } = useAppStore.getState();
-    const ctx = { categories, goals, keywordMap, today: today() };
+    const ctx = { categories, goals, keywordMap, today: today(), language: resolveLanguage(settings?.language) };
     let result = parseInput(text, ctx);
 
     if (result.needsReview && settings?.smartParseEnabled) {
@@ -25,7 +27,7 @@ export function useEntryFlow() {
       try {
         const key = await getApiKey();
         if (key) {
-          const assist = await llmParse(text, categories, key, ctx.today);
+          const assist = await llmParse(text, categories, key, ctx.today, ctx.language);
           if (assist) {
             result = {
               ...result,
@@ -34,9 +36,9 @@ export function useEntryFlow() {
               hints: [],
               needsReview: assist.amount == null,
             };
-            if (result.amount == null) result.hints = ["I still couldn't find an amount."];
+            if (result.amount == null) result.hints = [HINT.stillNoAmount];
           } else {
-            result.hints = [...result.hints, 'Smart assist is unavailable right now, so please check the fields.'];
+            result.hints = [...result.hints, HINT.assistUnavailable];
           }
         }
       } finally {

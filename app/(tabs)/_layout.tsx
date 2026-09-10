@@ -2,9 +2,11 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/theme';
+import { useT } from '@/i18n';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const t = useT();
   return (
     <Tabs
       screenOptions={{
@@ -19,11 +21,11 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Today', headerTitle: 'OnlyBudget', tabBarIcon: ({ color, size }) => <Ionicons name="sunny-outline" color={color} size={size} /> }} />
-      <Tabs.Screen name="budget" options={{ title: 'Budget', tabBarIcon: ({ color, size }) => <Ionicons name="pie-chart-outline" color={color} size={size} /> }} />
-      <Tabs.Screen name="goals" options={{ title: 'Goals', tabBarIcon: ({ color, size }) => <Ionicons name="flag-outline" color={color} size={size} /> }} />
-      <Tabs.Screen name="history" options={{ title: 'History', tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" color={color} size={size} /> }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="index" options={{ title: t.tabToday, headerTitle: t.appName, tabBarIcon: ({ color, size }) => <Ionicons name="sunny-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="budget" options={{ title: t.tabBudget, tabBarIcon: ({ color, size }) => <Ionicons name="pie-chart-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="goals" options={{ title: t.tabGoals, tabBarIcon: ({ color, size }) => <Ionicons name="flag-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="history" options={{ title: t.tabHistory, tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="settings" options={{ title: t.tabSettings, tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} /> }} />
     </Tabs>
   );
 }

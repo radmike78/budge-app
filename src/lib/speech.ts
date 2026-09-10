@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
+import { useLanguageCode, useT } from '@/i18n';
+import { getPack } from '@/parser/packs';
 
 export interface VoiceState {
   available: boolean;
@@ -15,6 +17,8 @@ export interface VoiceState {
  * with the finished transcript.
  */
 export function useVoiceInput(onFinal: (text: string) => void) {
+  const t = useT();
+  const language = useLanguageCode();
   const [state, setState] = useState<VoiceState>({ available: false, onDevice: false, listening: false, transcript: '', error: null });
   const finalRef = useRef(onFinal);
   finalRef.current = onFinal;
@@ -61,25 +65,25 @@ export function useVoiceInput(onFinal: (text: string) => void) {
 
   useSpeechRecognitionEvent('error', (event) => {
     const friendly: Record<string, string> = {
-      'not-allowed': 'Microphone access is off. You can turn it on in Settings, or just type.',
-      'no-speech': "I didn't catch anything. Try again, or type it.",
-      network: 'Voice needs a connection on this device. You can still type.',
-      'language-not-supported': 'Voice is not available for this language. You can still type.',
-      'service-not-allowed': 'Voice recognition is not available right now. You can still type.',
-      'audio-capture': 'Could not access the microphone. You can still type.',
+      'not-allowed': t.voiceErrors.notAllowed,
+      'no-speech': t.voiceErrors.noSpeech,
+      network: t.voiceErrors.network,
+      'language-not-supported': t.voiceErrors.language,
+      'service-not-allowed': t.voiceErrors.unavailable,
+      'audio-capture': t.voiceErrors.audio,
     };
     if (event.error === 'aborted') {
       setState((s) => ({ ...s, listening: false }));
       return;
     }
-    setState((s) => ({ ...s, listening: false, error: friendly[event.error] ?? 'Voice did not work that time. You can still type.' }));
+    setState((s) => ({ ...s, listening: false, error: friendly[event.error] ?? t.voiceErrors.generic }));
   });
 
   const start = useCallback(async () => {
     setState((s) => ({ ...s, error: null }));
     const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!perm.granted) {
-      setState((s) => ({ ...s, error: 'Microphone access is off. You can turn it on in Settings, or just type.' }));
+      setState((s) => ({ ...s, error: t.voiceErrors.notAllowed }));
       return;
     }
     let onDevice = false;
@@ -88,17 +92,18 @@ export function useVoiceInput(onFinal: (text: string) => void) {
     } catch {
       onDevice = false;
     }
+    const pack = getPack(language);
     ExpoSpeechRecognitionModule.start({
-      lang: 'en-US',
+      lang: pack.speechTag,
       interimResults: true,
       maxAlternatives: 1,
       continuous: false,
       requiresOnDeviceRecognition: onDevice,
       addsPunctuation: false,
       iosTaskHint: 'dictation',
-      contextualStrings: ['dollars', 'bucks', 'groceries', 'rent', 'paycheck', 'goal', 'Netflix', 'Uber'],
+      contextualStrings: pack.contextualStrings,
     });
-  }, []);
+  }, [language, t]);
 
   const stop = useCallback(() => {
     ExpoSpeechRecognitionModule.stop();
@@ -115,9 +120,9 @@ export function useVoiceInput(onFinal: (text: string) => void) {
   return { ...state, start, stop, cancel, clearError };
 }
 
-export async function triggerOfflineModelDownload(): Promise<string> {
+export async function triggerOfflineModelDownload(language = 'en'): Promise<string> {
   try {
-    const result = await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({ locale: 'en-US' });
+    const result = await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({ locale: getPack(language).speechTag });
     return result.status === 'download_success' ? 'Offline voice model is ready.' : `Model download: ${result.status}.`;
   } catch (e) {
     return `Could not start the download: ${(e as Error).message}`;

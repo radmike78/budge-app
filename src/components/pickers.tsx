@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Category, TxType } from '@/types';
 import { radius, spacing, useTheme } from '@/theme';
 import { addDays, friendlyDate, isValidDateString, today } from '@/lib/dates';
+import { categoryName, useDateFormat, useT } from '@/i18n';
 import { Button, Chip, Field, Icon, ListItem, Row, Text } from './ui';
 
 /** Bottom sheet container used by all pickers. */
@@ -30,15 +31,16 @@ export function CategoryPicker({ visible, onClose, onPick, kind, selectedId, cat
   selectedId: string | null;
   categories: Category[];
 }) {
+  const t = useT();
   const list = useMemo(() => categories.filter((c) => !c.archived && (kind === 'all' || c.kind === kind)), [categories, kind]);
   return (
-    <Sheet visible={visible} onClose={onClose} title="Category" tall>
+    <Sheet visible={visible} onClose={onClose} title={t.category} tall>
       <FlatList
         data={list}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => (
           <ListItem
-            title={item.name}
+            title={categoryName(item, t)}
             left={<Icon glyph={item.icon} size={22} />}
             right={item.id === selectedId ? <Text color={undefined} variant="body">✓</Text> : null}
             onPress={() => { onPick(item); onClose(); }}
@@ -51,23 +53,25 @@ export function CategoryPicker({ visible, onClose, onPick, kind, selectedId, cat
 
 export function DatePicker({ visible, onClose, value, onPick, future }: { visible: boolean; onClose: () => void; value: string; onPick: (d: string) => void; future?: boolean }) {
   const t = today();
+  const s = useT();
+  const fmt = useDateFormat();
   const [custom, setCustom] = useState(value);
   const quick = future
     ? [
-        { label: 'In a month', date: addDays(t, 30) },
-        { label: 'In 3 months', date: addDays(t, 90) },
-        { label: 'In 6 months', date: addDays(t, 180) },
-        { label: 'In a year', date: addDays(t, 365) },
+        { label: s.inAMonth, date: addDays(t, 30) },
+        { label: s.in3Months, date: addDays(t, 90) },
+        { label: s.in6Months, date: addDays(t, 180) },
+        { label: s.inAYear, date: addDays(t, 365) },
       ]
     : [
-        { label: 'Today', date: t },
-        { label: 'Yesterday', date: addDays(t, -1) },
-        { label: friendlyDate(addDays(t, -2)), date: addDays(t, -2) },
-        { label: friendlyDate(addDays(t, -3)), date: addDays(t, -3) },
+        { label: s.today, date: t },
+        { label: s.yesterday, date: addDays(t, -1) },
+        { label: friendlyDate(addDays(t, -2), t, fmt), date: addDays(t, -2) },
+        { label: friendlyDate(addDays(t, -3), t, fmt), date: addDays(t, -3) },
       ];
   const valid = isValidDateString(custom);
   return (
-    <Sheet visible={visible} onClose={onClose} title="Date">
+    <Sheet visible={visible} onClose={onClose} title={s.date}>
       <Row style={{ flexWrap: 'wrap' }}>
         {quick.map((q) => (
           <Chip key={q.date} label={q.label} selected={value === q.date} onPress={() => { onPick(q.date); onClose(); }} />
@@ -75,10 +79,10 @@ export function DatePicker({ visible, onClose, value, onPick, future }: { visibl
       </Row>
       <View style={{ height: spacing.lg }} />
       <Row gap={spacing.sm} align="flex-end">
-        <Field label="Or type a date" placeholder="YYYY-MM-DD" value={custom} onChangeText={setCustom} autoCapitalize="none" keyboardType="numbers-and-punctuation" style={{ flex: 1, marginBottom: 0 }} hint={custom && !valid ? 'Use the format 2026-09-03.' : undefined} />
-        <Button title="Use" disabled={!valid} onPress={() => { onPick(custom); onClose(); }} />
+        <Field label={s.orTypeDate} placeholder="YYYY-MM-DD" value={custom} onChangeText={setCustom} autoCapitalize="none" keyboardType="numbers-and-punctuation" style={{ flex: 1, marginBottom: 0 }} hint={custom && !valid ? s.dateFormatHint : undefined} />
+        <Button title={s.use} disabled={!valid} onPress={() => { onPick(custom); onClose(); }} />
       </Row>
-      {value ? <Text variant="small" style={{ marginTop: spacing.md }}>Currently: {friendlyDate(value)}</Text> : null}
+      {value ? <Text variant="small" style={{ marginTop: spacing.md }}>{s.currently(friendlyDate(value, t, fmt))}</Text> : null}
     </Sheet>
   );
 }
@@ -86,11 +90,12 @@ export function DatePicker({ visible, onClose, value, onPick, future }: { visibl
 const EMOJI = ['🧾', '🥦', '🍽️', '🏠', '💡', '🚌', '🩺', '🎬', '🛍️', '🔁', '🏦', '🐖', '💼', '🛠️', '🎁', '➕', '🐶', '🐱', '👶', '🎓', '✈️', '🏖️', '🎮', '📚', '🚗', '⛽', '🧹', '💇', '🎵', '🏋️', '☕', '🍕', '🍺', '🎂', '💊', '🧸', '📱', '💻', '🌱', '🧳', '🎨', '⚽', '🏠', '🔧', '💐', '🧼', '🚲', '🎟️', '🍔', '🥐'];
 
 export function EmojiPicker({ visible, onClose, onPick }: { visible: boolean; onClose: () => void; onPick: (e: string) => void }) {
+  const t = useT();
   return (
-    <Sheet visible={visible} onClose={onClose} title="Pick an icon">
+    <Sheet visible={visible} onClose={onClose} title={t.pickIconTitle}>
       <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
         {EMOJI.map((e, i) => (
-          <Pressable key={`${e}-${i}`} accessibilityRole="button" accessibilityLabel={`Icon ${e}`} onPress={() => { onPick(e); onClose(); }} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable key={`${e}-${i}`} accessibilityRole="button" accessibilityLabel={e} onPress={() => { onPick(e); onClose(); }} style={{ width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 28 }}>{e}</Text>
           </Pressable>
         ))}

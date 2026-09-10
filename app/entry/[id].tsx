@@ -6,8 +6,9 @@ import { getDb } from '@/db/database';
 import { getTransaction } from '@/db/repositories';
 import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
-import { friendlyDate } from '@/lib/dates';
+import { friendlyDate, today } from '@/lib/dates';
 import { parseMoneyInput } from '@/lib/money';
+import { categoryName, useDateFormat, useLocale, useT } from '@/i18n';
 import { CategoryPicker, DatePicker } from '@/components/pickers';
 import { Button, Field, Row, Screen, Segmented, Text } from '@/components/ui';
 
@@ -15,6 +16,9 @@ export default function EditEntry() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors } = useTheme();
+  const t = useT();
+  const locale = useLocale();
+  const fmt = useDateFormat();
   const categories = useAppStore((s) => s.categories);
   const update = useAppStore((s) => s.updateTransaction);
   const remove = useAppStore((s) => s.deleteTransaction);
@@ -32,52 +36,52 @@ export default function EditEntry() {
   useEffect(() => {
     (async () => {
       const db = await getDb();
-      const t = await getTransaction(db, id);
-      if (!t) { router.back(); return; }
-      setTx(t); setAmount(String(t.amount)); setType(t.type); setCategoryId(t.categoryId); setNote(t.note ?? ''); setDate(t.occurredAt);
+      const found = await getTransaction(db, id);
+      if (!found) { router.back(); return; }
+      setTx(found); setAmount(String(found.amount)); setType(found.type); setCategoryId(found.categoryId); setNote(found.note ?? ''); setDate(found.occurredAt);
     })();
   }, [id, router]);
 
   if (!tx) return <Screen><View /></Screen>;
   const category = categories.find((c) => c.id === categoryId);
 
-  const changeType = (t: TxType) => {
-    setType(t);
-    if (category && category.kind !== t) setCategoryId(categories.find((c) => !c.archived && c.kind === t)?.id ?? null);
+  const changeType = (next: TxType) => {
+    setType(next);
+    if (category && category.kind !== next) setCategoryId(categories.find((c) => !c.archived && c.kind === next)?.id ?? null);
   };
 
   const save = async () => {
-    const a = parseMoneyInput(amount);
-    if (a == null || a <= 0) { setError('Enter an amount.'); return; }
+    const a = parseMoneyInput(amount, locale.format.decimal === ',');
+    if (a == null || a <= 0) { setError(t.enterAmount); return; }
     await update({ ...tx, amount: a, type, categoryId, note: note.trim() || null, occurredAt: date });
     if (categoryId && categoryId !== tx.categoryId && tx.rawInput) await learn(tx.rawInput, categoryId);
     router.back();
   };
 
   const confirmDelete = () => {
-    Alert.alert('Remove this entry?', undefined, [
-      { text: 'Keep', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => { await remove(tx.id); router.back(); } },
+    Alert.alert(t.removeEntryQ, undefined, [
+      { text: t.keep, style: 'cancel' },
+      { text: t.remove, style: 'destructive', onPress: async () => { await remove(tx.id); router.back(); } },
     ]);
   };
 
   return (
     <Screen keyboard>
-      {tx.rawInput ? <Text variant="small" style={{ marginBottom: spacing.md }}>Originally: "{tx.rawInput}"</Text> : null}
-      {tx.isRecurringInstance ? <Text variant="small" style={{ marginBottom: spacing.md }}>This entry was logged automatically by a repeating entry. Editing it here changes only this one.</Text> : null}
-      <Field label="Amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" inputStyle={{ fontSize: 28, fontWeight: '700' }} />
+      {tx.rawInput ? <Text variant="small" style={{ marginBottom: spacing.md }}>{t.originally(tx.rawInput)}</Text> : null}
+      {tx.isRecurringInstance ? <Text variant="small" style={{ marginBottom: spacing.md }}>{t.recurringInstanceNote}</Text> : null}
+      <Field label={t.amount} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" inputStyle={{ fontSize: 28, fontWeight: '700' }} />
       <View style={{ marginBottom: spacing.lg }}>
-        <Segmented value={type} onChange={changeType} options={[{ value: 'expense', label: 'Money out' }, { value: 'income', label: 'Money in' }]} />
+        <Segmented value={type} onChange={changeType} options={[{ value: 'expense', label: t.moneyOut }, { value: 'income', label: t.moneyIn }]} />
       </View>
-      <Text variant="label" style={{ marginBottom: 6 }}>Category · Date</Text>
+      <Text variant="label" style={{ marginBottom: 6 }}>{t.categoryDate}</Text>
       <Row style={{ marginBottom: spacing.lg, flexWrap: 'wrap' }}>
-        <Button tone="secondary" small title={`${category?.icon ?? ''} ${category?.name ?? 'Pick a category'}`.trim()} onPress={() => setShowCat(true)} />
-        <Button tone="secondary" small title={friendlyDate(date)} onPress={() => setShowDate(true)} />
+        <Button tone="secondary" small title={category ? `${category.icon ?? ''} ${categoryName(category, t)}`.trim() : t.pickCategory} onPress={() => setShowCat(true)} />
+        <Button tone="secondary" small title={friendlyDate(date, today(), fmt)} onPress={() => setShowDate(true)} />
       </Row>
-      <Field label="Note" value={note} onChangeText={setNote} placeholder="Optional" />
+      <Field label={t.note} value={note} onChangeText={setNote} placeholder={t.optional} />
       {error ? <Text variant="small" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</Text> : null}
-      <Button title="Save changes" onPress={save} />
-      <View style={{ marginTop: spacing.md }}><Button tone="danger" title="Remove entry" onPress={confirmDelete} /></View>
+      <Button title={t.saveChanges} onPress={save} />
+      <View style={{ marginTop: spacing.md }}><Button tone="danger" title={t.removeEntry} onPress={confirmDelete} /></View>
       <CategoryPicker visible={showCat} onClose={() => setShowCat(false)} onPick={(c) => setCategoryId(c.id)} kind={type} selectedId={categoryId} categories={categories} />
       <DatePicker visible={showDate} onClose={() => setShowDate(false)} value={date} onPick={setDate} />
     </Screen>

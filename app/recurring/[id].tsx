@@ -7,7 +7,7 @@ import { spacing, useTheme } from '@/theme';
 import { friendlyDate, today } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { parseMoneyInput } from '@/lib/money';
-import { FREQUENCY_LABELS } from '@/lib/recurring';
+import { categoryName, useDateFormat, useLocale, useT } from '@/i18n';
 import { CategoryPicker, DatePicker } from '@/components/pickers';
 import { Button, Chip, Field, Row, Screen, Segmented, Text } from '@/components/ui';
 
@@ -17,6 +17,9 @@ export default function RecurringEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors } = useTheme();
+  const t = useT();
+  const locale = useLocale();
+  const fmt = useDateFormat();
   const rules = useAppStore((s) => s.rules);
   const categories = useAppStore((s) => s.categories);
   const save = useAppStore((s) => s.saveRule);
@@ -35,49 +38,49 @@ export default function RecurringEditor() {
   const [error, setError] = useState<string | null>(null);
   const category = categories.find((c) => c.id === categoryId);
 
-  const changeType = (t: TxType) => {
-    setType(t);
-    if (category && category.kind !== t) setCategoryId(categories.find((c) => !c.archived && c.kind === t)?.id ?? null);
+  const changeType = (nextType: TxType) => {
+    setType(nextType);
+    if (category && category.kind !== nextType) setCategoryId(categories.find((c) => !c.archived && c.kind === nextType)?.id ?? null);
   };
 
   const onSave = async () => {
-    const a = parseMoneyInput(amount);
-    if (a == null || a <= 0) { setError('Enter an amount.'); return; }
+    const a = parseMoneyInput(amount, locale.format.decimal === ',');
+    if (a == null || a <= 0) { setError(t.enterAmount); return; }
     await save({ id: existing?.id ?? newId(), amount: a, type, categoryId, frequency, nextOccurrence: next, note: note.trim() || null, active: existing?.active ?? true });
     router.back();
   };
 
   const onDelete = () => {
     if (!existing) return;
-    Alert.alert('Remove this repeating entry?', 'Entries already logged stay in your history.', [
-      { text: 'Keep', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => { await remove(existing.id); router.back(); } },
+    Alert.alert(t.removeRecurringQ, t.removeRecurringBody, [
+      { text: t.keep, style: 'cancel' },
+      { text: t.remove, style: 'destructive', onPress: async () => { await remove(existing.id); router.back(); } },
     ]);
   };
 
   return (
     <Screen keyboard>
-      <Field label="Amount" value={amount} onChangeText={setAmount} keyboardType="decimal-pad" inputStyle={{ fontSize: 28, fontWeight: '700' }} autoFocus={isNew} style={{ marginTop: spacing.sm }} />
+      <Field label={t.amount} value={amount} onChangeText={setAmount} keyboardType="decimal-pad" inputStyle={{ fontSize: 28, fontWeight: '700' }} autoFocus={isNew} style={{ marginTop: spacing.sm }} />
       <View style={{ marginBottom: spacing.lg }}>
-        <Segmented value={type} onChange={changeType} options={[{ value: 'expense', label: 'Money out' }, { value: 'income', label: 'Money in' }]} />
+        <Segmented value={type} onChange={changeType} options={[{ value: 'expense', label: t.moneyOut }, { value: 'income', label: t.moneyIn }]} />
       </View>
-      <Text variant="label" style={{ marginBottom: 6 }}>How often</Text>
+      <Text variant="label" style={{ marginBottom: 6 }}>{t.howOften}</Text>
       <Row style={{ flexWrap: 'wrap', marginBottom: spacing.lg }}>
-        {FREQUENCIES.map((f) => <Chip key={f} label={FREQUENCY_LABELS[f]} selected={frequency === f} onPress={() => setFrequency(f)} />)}
+        {FREQUENCIES.map((f) => <Chip key={f} label={t.frequency[f]} selected={frequency === f} onPress={() => setFrequency(f)} />)}
       </Row>
-      <Text variant="label" style={{ marginBottom: 6 }}>Category · {isNew ? 'First date' : 'Next date'}</Text>
+      <Text variant="label" style={{ marginBottom: 6 }}>{t.category} · {isNew ? t.firstDate : t.nextDateLabel}</Text>
       <Row style={{ marginBottom: spacing.lg, flexWrap: 'wrap' }}>
-        <Button tone="secondary" small title={`${category?.icon ?? ''} ${category?.name ?? 'Pick a category'}`.trim()} onPress={() => setShowCat(true)} />
-        <Button tone="secondary" small title={friendlyDate(next)} onPress={() => setShowDate(true)} />
+        <Button tone="secondary" small title={category ? `${category.icon ?? ''} ${categoryName(category, t)}`.trim() : t.pickCategory} onPress={() => setShowCat(true)} />
+        <Button tone="secondary" small title={friendlyDate(next, today(), fmt)} onPress={() => setShowDate(true)} />
       </Row>
-      <Text variant="small" style={{ marginBottom: spacing.lg }}>If the first date is today or earlier, the entry is logged right away.</Text>
-      <Field label="Note" value={note} onChangeText={setNote} placeholder="Rent, Salary, Netflix…" />
+      <Text variant="small" style={{ marginBottom: spacing.lg }}>{t.firstDateHint}</Text>
+      <Field label={t.note} value={note} onChangeText={setNote} placeholder={t.recurringNotePlaceholder} />
       {error ? <Text variant="small" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</Text> : null}
-      <Button title={isNew ? 'Start repeating' : 'Save'} onPress={onSave} />
+      <Button title={isNew ? t.startRepeating : t.save} onPress={onSave} />
       {existing ? (
         <Row style={{ marginTop: spacing.md }}>
-          <Button tone="secondary" title={existing.active ? 'Pause' : 'Resume'} style={{ flex: 1 }} onPress={async () => { await save({ ...existing, active: !existing.active }); router.back(); }} />
-          <Button tone="danger" title="Remove" style={{ flex: 1 }} onPress={onDelete} />
+          <Button tone="secondary" title={existing.active ? t.pause : t.resume} style={{ flex: 1 }} onPress={async () => { await save({ ...existing, active: !existing.active }); router.back(); }} />
+          <Button tone="danger" title={t.remove} style={{ flex: 1 }} onPress={onDelete} />
         </Row>
       ) : null}
       <CategoryPicker visible={showCat} onClose={() => setShowCat(false)} onPick={(c) => setCategoryId(c.id)} kind={type} selectedId={categoryId} categories={categories} />
