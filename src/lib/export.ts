@@ -8,7 +8,7 @@ import { formatMoney } from './money';
 export const BACKUP_VERSION = 1;
 
 export interface BackupPayload {
-  app: 'plainly';
+  app: 'onlybudget';
   version: number;
   exportedAt: string;
   settings: Settings;
@@ -55,7 +55,7 @@ export function summaryText(transactions: Transaction[], categories: Category[],
     months.get(k)!.push(t);
   }
   const lines: string[] = [];
-  lines.push('Plainly summary');
+  lines.push('Only Budget summary');
   lines.push(`Generated ${generatedAt.slice(0, 10)}`);
   lines.push('');
   if (months.size === 0) lines.push('No entries yet.');
@@ -84,16 +84,16 @@ export function summaryText(transactions: Transaction[], categories: Category[],
     }
     lines.push('');
   }
-  lines.push('Made with Plainly. No bank linking, no ads, no tracking.');
+  lines.push('Made with Only Budget. No bank linking, no ads, no tracking.');
   return lines.join('\n');
 }
 
 export function buildBackup(data: Omit<BackupPayload, 'app' | 'version' | 'exportedAt'>, exportedAt: string): BackupPayload {
-  return { app: 'plainly', version: BACKUP_VERSION, exportedAt, ...data };
+  return { app: 'onlybudget', version: BACKUP_VERSION, exportedAt, ...data };
 }
 
 export function isBackupPayload(x: unknown): x is BackupPayload {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return o.app === 'plainly' && typeof o.version === 'number' && Array.isArray(o.categories) && Array.isArray(o.transactions) && Array.isArray(o.goals);
+  return o.app === 'onlybudget' && typeof o.version === 'number' && Array.isArray(o.categories) && Array.isArray(o.transactions) && Array.isArray(o.goals);
 }

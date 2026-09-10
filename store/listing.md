@@ -1,10 +1,10 @@
-# Store listing — Plainly
+# Store listing — Only Budget
 
 ## Name
-Plainly — Budget by voice
+Only Budget
 
 ## Subtitle (App Store, 30 chars)
-No bank linking. No ads.
+Only a budget. Nothing else.
 
 ## Short description (Play, 80 chars)
 No bank account required. No ads. No subscriptions. Just tell it what you spent.
@@ -13,13 +13,13 @@ No bank account required. No ads. No subscriptions. Just tell it what you spent.
 
 **No bank account required. No ads. No subscriptions. Just tell it what you spent.**
 
-Plainly is a budget you talk to. Tap the mic (or type) and say it the way you'd say it to a friend:
+Only Budget is a budget you talk to. Tap the mic (or type) and say it the way you'd say it to a friend:
 
 - "spent 12 on lunch"
 - "got paid 2400"
 - "goal: save 500 for a trip by December"
 
-Plainly works out the amount, whether it's money in or out, the category and the date, then shows you before it saves. Fix anything with one tap. If you correct a category, it remembers the word next time.
+Only Budget works out the amount, whether it's money in or out, the category and the date, then shows you before it saves. Fix anything with one tap. If you correct a category, it remembers the word next time.
 
 **What you get**
 - Voice and text entry that take under ten seconds
@@ -32,7 +32,7 @@ Plainly works out the amount, whether it's money in or out, the category and the
 - Light and dark themes
 
 **What you never get**
-- Bank linking. Not now, not later, not as an upgrade. Plainly never asks for bank credentials.
+- Bank linking. Not now, not later, not as an upgrade. Only Budget never asks for bank credentials.
 - Ads, trackers, analytics, or third-party data sharing. There is no server. Your data lives on your phone.
 - Accounts. You never sign up.
 - Subscriptions or trials that turn into subscriptions. The price you see is the price, and nothing you entered is ever put behind a paywall.
@@ -40,7 +40,7 @@ Plainly works out the amount, whether it's money in or out, the category and the
 
 Speech is turned into text by your phone's own recognizer. On devices that support it, recognition runs on the device and audio never leaves the phone.
 
-Plainly is for people who want awareness and control over their spending without handing bank credentials to a third party, and who find most budgeting apps either too complex or too automated to trust.
+Only Budget is for people who want awareness and control over their spending without handing bank credentials to a third party, and who find most budgeting apps either too complex or too automated to trust.
 
 ## Keywords (App Store, 100 chars)
 budget,expense tracker,spending,voice,manual budget,offline,private,savings goal,no bank,money
@@ -52,7 +52,7 @@ First release.
 
 ### Apple privacy nutrition label
 - **Data not collected.** The app has no server, no analytics SDK, no advertising identifier, and no crash reporting service.
-- Speech recognition uses Apple's Speech framework on the device where supported. Apple's own on-device / server recognition policy applies to the recognizer, not to Plainly.
+- Speech recognition uses Apple's Speech framework on the device where supported. Apple's own on-device / server recognition policy applies to the recognizer, not to Only Budget.
 - Optional "Smart parsing assist" is off by default. If the user enables it and enters their own API key, individual phrases the built-in parser could not understand are sent to Anthropic's API. This is user-initiated, disclosed in-app, and can be turned off at any time. Declare as: **Data not linked to you — User Content (other user content), used for App Functionality, only when the optional feature is enabled.**
 
 ### Google Play data safety

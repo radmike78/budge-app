@@ -49,20 +49,20 @@ export default function Backup() {
   const exportCsv = () => run('csv', async () => {
     const db = await getDb();
     const tx = await allTransactions(db);
-    await shareTextFile(`plainly-entries-${timestampForFilename()}.csv`, transactionsToCsv(tx, categories));
+    await shareTextFile(`onlybudget-entries-${timestampForFilename()}.csv`, transactionsToCsv(tx, categories));
     return 'CSV ready to save or share.';
   });
 
   const exportSummary = () => run('summary', async () => {
     const db = await getDb();
     const tx = await allTransactions(db);
-    await shareTextFile(`plainly-summary-${timestampForFilename()}.txt`, summaryText(tx, categories, goals, settings.currency, nowIso()));
+    await shareTextFile(`onlybudget-summary-${timestampForFilename()}.txt`, summaryText(tx, categories, goals, settings.currency, nowIso()));
     return 'Summary ready to save or share.';
   });
 
   const exportBackup = () => run('backup', async () => {
     const payload = await snapshot();
-    await shareTextFile(`plainly-backup-${timestampForFilename()}.json`, JSON.stringify(payload, null, 2));
+    await shareTextFile(`onlybudget-backup-${timestampForFilename()}.json`, JSON.stringify(payload, null, 2));
     await updateSettings({ lastBackupAt: nowIso() });
     return 'Backup file ready. Keep it somewhere safe, like your own cloud drive.';
   });
@@ -72,14 +72,14 @@ export default function Backup() {
     if (pass !== pass2) throw new Error('The passphrases do not match.');
     const payload = await snapshot();
     const file = encryptBackup(JSON.stringify(payload), pass, (n) => Crypto.getRandomBytes(n));
-    await shareTextFile(`plainly-backup-${timestampForFilename()}.plainly.json`, JSON.stringify(file));
+    await shareTextFile(`onlybudget-backup-${timestampForFilename()}.onlybudget.json`, JSON.stringify(file));
     await updateSettings({ lastBackupAt: nowIso() });
     setAskPass(null); setPass(''); setPass2('');
     return 'Encrypted backup ready. Without the passphrase it cannot be opened, so remember it.';
   });
 
   const applyRestore = async (payload: unknown) => {
-    if (!isBackupPayload(payload)) throw new Error('This is not a Plainly backup file.');
+    if (!isBackupPayload(payload)) throw new Error('This is not an Only Budget backup file.');
     await new Promise<void>((resolve, reject) => {
       Alert.alert('Replace everything on this phone?', `${payload.transactions.length} entries, ${payload.goals.length} goals and your categories will replace what is here now.`, [
         { text: 'Cancel', style: 'cancel', onPress: () => reject(new Error('Cancelled.')) },

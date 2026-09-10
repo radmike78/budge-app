@@ -8,7 +8,7 @@ let dbPromise: Promise<DB> | null = null;
 export function getDb(): Promise<DB> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync('plainly.db');
+      const db = await SQLite.openDatabaseAsync('onlybudget.db');
       await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
       await migrate(db);
       return db;

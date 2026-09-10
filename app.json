@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Plainly",
-    "slug": "plainly",
+    "name": "Only Budget",
+    "slug": "onlybudget",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "plainly",
+    "scheme": "onlybudget",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,13 +15,13 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.plainly.budget",
+      "bundleIdentifier": "app.onlybudget",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "app.plainly.budget",
+      "package": "app.onlybudget",
       "adaptiveIcon": {
         "backgroundColor": "#3D6B5E",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -42,8 +42,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Plainly uses the microphone so you can speak an entry like \"spent 12 on lunch\". Audio is processed on your device.",
-          "speechRecognitionPermission": "Plainly uses speech recognition to turn what you say into a budget entry. Nothing is sent to us."
+          "microphonePermission": "Only Budget uses the microphone so you can speak an entry like \"spent 12 on lunch\". Audio is processed on your device.",
+          "speechRecognitionPermission": "Only Budget uses speech recognition to turn what you say into a budget entry. Nothing is sent to us."
         }
       ],
       [

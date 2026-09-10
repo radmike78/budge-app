@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
-const REMINDER_ID = 'plainly-daily-reminder';
+const REMINDER_ID = 'onlybudget-daily-reminder';
 
 /**
  * One optional, gentle daily reminder. Never a badge, never a streak.

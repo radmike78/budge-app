@@ -6,7 +6,7 @@ const MIME: Record<string, string> = {
   csv: 'text/csv',
   txt: 'text/plain',
   json: 'application/json',
-  plainly: 'application/json',
+  onlybudget: 'application/json',
 };
 
 /** Writes text to the cache directory and opens the system share sheet. */
@@ -17,7 +17,7 @@ export async function shareTextFile(filename: string, contents: string): Promise
   const ext = filename.split('.').pop() ?? 'txt';
   const canShare = await Sharing.isAvailableAsync();
   if (!canShare) throw new Error('Sharing is not available on this device.');
-  await Sharing.shareAsync(file.uri, { mimeType: MIME[ext] ?? 'text/plain', dialogTitle: filename, UTI: ext === 'json' || ext === 'plainly' ? 'public.json' : 'public.plain-text' });
+  await Sharing.shareAsync(file.uri, { mimeType: MIME[ext] ?? 'text/plain', dialogTitle: filename, UTI: ext === 'json' || ext === 'onlybudget' ? 'public.json' : 'public.plain-text' });
 }
 
 /** Lets the user pick a backup file and returns its text, or null if cancelled. */

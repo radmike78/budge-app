@@ -20,7 +20,7 @@ export default function RecurringList() {
 
   return (
     <Screen>
-      <Text variant="muted" style={{ marginTop: spacing.sm }}>Set up once. Each period Plainly logs the entry for you and moves the next date forward. You can edit or remove any logged entry like normal.</Text>
+      <Text variant="muted" style={{ marginTop: spacing.sm }}>Set up once. Each period Only Budget logs the entry for you and moves the next date forward. You can edit or remove any logged entry like normal.</Text>
       <View style={{ marginVertical: spacing.lg }}><Button title="New repeating entry" onPress={() => router.push('/recurring/new')} /></View>
       {active.length > 0 ? <Text variant="small" style={{ marginBottom: spacing.md }}>About {formatMoney(monthlyOut, currency, { compact: true })} out and {formatMoney(monthlyIn, currency, { compact: true })} in per month.</Text> : null}
       {rules.length === 0 ? <EmptyState title="Nothing repeating yet" body="Rent, salary, a streaming plan. Anything that happens on a schedule." /> : null}

@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-const API_KEY = 'plainly.anthropic_api_key';
+const API_KEY = 'onlybudget.anthropic_api_key';
 
 export async function getApiKey(): Promise<string | null> {
   try {

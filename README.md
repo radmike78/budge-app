@@ -1,4 +1,4 @@
-# Plainly
+# Only Budget
 
 A minimal, honest budgeting app. No bank sync, no accounts, no ads, no bait-and-switch subscriptions. You speak or type your income, expenses and goals in plain language, and the app does the categorizing for you.
 
