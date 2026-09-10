@@ -42,6 +42,7 @@ export async function llmParse(
   categories: Category[],
   apiKey: string,
   today: string,
+  language = 'en',
   timeoutMs = 8000,
 ): Promise<Partial<ParseResult> | null> {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 0, timeout: timeoutMs });
@@ -55,7 +56,7 @@ export async function llmParse(
       system:
         'You turn one short budgeting phrase into a structured entry. Categories available: ' +
         names +
-        `. Today is ${today}. Pick the closest category; use null only when nothing fits. Amounts are always positive. ` +
+        `. Today is ${today}. The phrase is in the language with code "${language}"; reply with the note in that language. Pick the closest category; use null only when nothing fits. Amounts are always positive. ` +
         'A phrase about wanting to save a target amount for something is kind "goal". Do not invent an amount.',
       messages: [{ role: 'user', content: raw }],
     });

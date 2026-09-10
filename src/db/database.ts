@@ -8,7 +8,7 @@ let dbPromise: Promise<DB> | null = null;
 export function getDb(): Promise<DB> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync('plainly.db');
+      const db = await SQLite.openDatabaseAsync('onlybudget.db');
       await db.execAsync('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
       await migrate(db);
       return db;
@@ -90,6 +90,8 @@ const MIGRATIONS: string[] = [
     category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE
   );
   `,
+  // v2: app language ('system' follows the phone).
+  `ALTER TABLE settings ADD COLUMN language TEXT DEFAULT 'system';`,
 ];
 
 async function migrate(db: DB): Promise<void> {
@@ -120,7 +122,7 @@ async function seedDefaultCategories(db: DB): Promise<void> {
 export async function resetDatabase(db: DB): Promise<void> {
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories;');
-    await txn.execAsync("UPDATE settings SET currency='USD', theme='system', last_backup_at=NULL, starting_balance=NULL, reminder_enabled=0, reminder_hour=20, smart_parse_enabled=0 WHERE id=1");
+    await txn.execAsync("UPDATE settings SET currency='USD', theme='system', last_backup_at=NULL, starting_balance=NULL, reminder_enabled=0, reminder_hour=20, smart_parse_enabled=0, language='system' WHERE id=1");
   });
   await seedDefaultCategories(db);
 }

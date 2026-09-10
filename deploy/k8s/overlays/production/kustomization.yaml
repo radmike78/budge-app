@@ -1,0 +1,12 @@
+# Example production overlay: pinned image tag, more replicas, autoscaling.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - hpa.yaml
+images:
+  - name: ghcr.io/radmike78/onlybudget-web
+    newTag: "1.0.0"
+replicas:
+  - name: onlybudget-web
+    count: 3

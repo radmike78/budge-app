@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: onlybudget-web
+  annotations:
+    # TLS is required: the app uses SharedArrayBuffer and the microphone, which browsers
+    # only allow on secure origins. Uncomment for cert-manager:
+    # cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - budget.example.com
+      secretName: onlybudget-web-tls
+  rules:
+    - host: budget.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: onlybudget-web
+                port:
+                  name: http

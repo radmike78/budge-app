@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAppStore } from '@/store/useAppStore';
 import { useTheme } from '@/theme';
 import { configureNotificationHandler } from '@/lib/reminders';
+import { useT } from '@/i18n';
 import { Text } from '@/components/ui';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -15,6 +16,7 @@ configureNotificationHandler();
 
 export default function RootLayout() {
   const { colors, isDark } = useTheme();
+  const t = useT();
   const ready = useAppStore((s) => s.ready);
   const onboardingDone = useAppStore((s) => s.settings?.onboardingDone ?? false);
   const init = useAppStore((s) => s.init);
@@ -32,7 +34,7 @@ export default function RootLayout() {
   if (error) {
     body = (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: colors.bg }}>
-        <Text variant="heading">Something went wrong opening your data.</Text>
+        <Text variant="heading">{t.openError}</Text>
         <Text variant="muted" style={{ marginTop: 8, textAlign: 'center' }}>{error}</Text>
       </View>
     );
@@ -43,8 +45,6 @@ export default function RootLayout() {
       </View>
     );
   } else {
-    // Route guards: before onboarding only the onboarding screen exists; after
-    // it, onboarding disappears and the router lands on the tabs.
     body = (
       <Stack
         screenOptions={{
@@ -52,6 +52,7 @@ export default function RootLayout() {
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '600' },
           headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
@@ -60,15 +61,15 @@ export default function RootLayout() {
         </Stack.Protected>
         <Stack.Protected guard={onboardingDone}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="entry/[id]" options={{ title: 'Edit entry', presentation: 'modal' }} />
-          <Stack.Screen name="category/[id]" options={{ title: 'Category', presentation: 'modal' }} />
-          <Stack.Screen name="goal/[id]" options={{ title: 'Goal', presentation: 'modal' }} />
-          <Stack.Screen name="recurring/index" options={{ title: 'Repeating entries' }} />
-          <Stack.Screen name="recurring/[id]" options={{ title: 'Repeating entry', presentation: 'modal' }} />
-          <Stack.Screen name="settings/about" options={{ title: 'About Plainly' }} />
-          <Stack.Screen name="settings/backup" options={{ title: 'Backup & export' }} />
-          <Stack.Screen name="settings/smart" options={{ title: 'Smart parsing' }} />
-          <Stack.Screen name="settings/keywords" options={{ title: 'Learned words' }} />
+          <Stack.Screen name="entry/[id]" options={{ title: t.saveChanges, presentation: 'modal' }} />
+          <Stack.Screen name="category/[id]" options={{ title: t.category, presentation: 'modal' }} />
+          <Stack.Screen name="goal/[id]" options={{ title: t.goals, presentation: 'modal' }} />
+          <Stack.Screen name="recurring/index" options={{ title: t.repeatingEntries }} />
+          <Stack.Screen name="recurring/[id]" options={{ title: t.repeatingEntries, presentation: 'modal' }} />
+          <Stack.Screen name="settings/about" options={{ title: t.aboutApp }} />
+          <Stack.Screen name="settings/backup" options={{ title: t.backupExport }} />
+          <Stack.Screen name="settings/smart" options={{ title: t.smartParse }} />
+          <Stack.Screen name="settings/keywords" options={{ title: t.learnedWords }} />
         </Stack.Protected>
       </Stack>
     );

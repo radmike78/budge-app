@@ -6,6 +6,7 @@ import { currentMonthKey, nowIso, today } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { dueOccurrences } from '@/lib/recurring';
 import { learnableWords } from '@/parser';
+import { getLocale, resolveLanguage } from '@/i18n';
 
 interface AppState {
   ready: boolean;
@@ -147,7 +148,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         amount,
         type: 'expense',
         categoryId: savings?.id ?? null,
-        note: `Toward ${goal.name}`,
+        note: getLocale(get().settings?.language).s.toward(goal.name),
         rawInput: opts.rawInput ?? null,
         occurredAt: opts.occurredAt,
         createdAt: nowIso(),
@@ -213,7 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   learnCategory: async (rawInput, categoryId) => {
     const db = await getDb();
-    const words = learnableWords(rawInput);
+    const words = learnableWords(rawInput, resolveLanguage(get().settings?.language));
     for (const w of words) await repo.upsertKeyword(db, w, categoryId);
     if (words.length) await get().refresh();
   },

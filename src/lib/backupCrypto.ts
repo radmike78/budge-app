@@ -8,7 +8,7 @@ import { bytesToUtf8, utf8ToBytes } from '@noble/ciphers/utils.js';
 import { scrypt } from '@noble/hashes/scrypt.js';
 
 export interface EncryptedBackupFile {
-  app: 'plainly';
+  app: 'onlybudget';
   format: 'encrypted-backup';
   version: 1;
   kdf: { name: 'scrypt'; N: number; r: number; p: number; salt: string };
@@ -58,7 +58,7 @@ export function encryptBackup(plaintextJson: string, passphrase: string, randomB
   const key = scrypt(utf8ToBytes(passphrase.normalize('NFKC')), salt, SCRYPT);
   const ciphertext = xchacha20poly1305(key, nonce).encrypt(utf8ToBytes(plaintextJson));
   return {
-    app: 'plainly',
+    app: 'onlybudget',
     format: 'encrypted-backup',
     version: 1,
     kdf: { name: 'scrypt', N: SCRYPT.N, r: SCRYPT.r, p: SCRYPT.p, salt: bytesToBase64(salt) },
@@ -71,7 +71,7 @@ export function encryptBackup(plaintextJson: string, passphrase: string, randomB
 export function isEncryptedBackupFile(x: unknown): x is EncryptedBackupFile {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return o.app === 'plainly' && o.format === 'encrypted-backup' && typeof o.ciphertext === 'string' && typeof o.nonce === 'string';
+  return o.app === 'onlybudget' && o.format === 'encrypted-backup' && typeof o.ciphertext === 'string' && typeof o.nonce === 'string';
 }
 
 /** Throws if the passphrase is wrong or the file was tampered with. */

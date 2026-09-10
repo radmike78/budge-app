@@ -1,8 +1,9 @@
 import type { Category, Goal, TxType } from '@/types';
 import { FALLBACK_EXPENSE_CATEGORY_ID, FALLBACK_INCOME_CATEGORY_ID } from '@/lib/defaultCategories';
-import { extractFutureDate, extractPastDate } from './dates';
-import { EXPENSE_VERB_RE, INCOME_VERB_RE, KEYWORDS, MAX_PHRASE_WORDS, STOPWORDS } from './keywords';
-import { replaceNumberWords } from './numberWords';
+import { applyRules } from './dateRules';
+import { normalizeDecimalComma } from './numbers';
+import { getPack } from './packs';
+import type { LanguagePack } from './types';
 
 export type ParseKind = 'transaction' | 'goal' | 'contribution' | 'unknown';
 
@@ -27,7 +28,7 @@ export interface ParseResult {
   confidence: number;
   /** True when the app should ask the user to check the result more carefully (or escalate to Tier 2). */
   needsReview: boolean;
-  /** Plain-language hints shown on the confirmation card. */
+  /** Hint keys shown on the confirmation card (translated by the UI). */
   hints: string[];
 }
 
@@ -38,19 +39,92 @@ export interface ParseContext {
   keywordMap: Record<string, string>;
   /** YYYY-MM-DD */
   today: string;
+  /** Language code ('en', 'es', ...). Defaults to English. */
+  language?: string;
 }
 
-const CURRENCY_WORDS = /\b(dollars?|bucks?|usd|euros?|eur|pounds?|gbp|quid|cad|aud|yen|rupees?|inr|pesos?|kr|chf)\b/g;
+/** Hint identifiers; the UI maps these to translated sentences. */
+export const HINT = {
+  noAmount: 'hint.noAmount',
+  multipleNumbers: 'hint.multipleNumbers',
+  unsureCategory: 'hint.unsureCategory',
+  assumedExpense: 'hint.assumedExpense',
+  assumedIncome: 'hint.assumedIncome',
+  goalAmount: 'hint.goalAmount',
+  goalName: 'hint.goalName',
+  goalNoDate: 'hint.goalNoDate',
+  contributionAmount: 'hint.contributionAmount',
+  stillNoAmount: 'hint.stillNoAmount',
+  assistUnavailable: 'hint.assistUnavailable',
+} as const;
 
-export function normalize(text: string): string {
-  return text
+const WB_START = '(?<![\\p{L}\\p{N}])';
+const WB_END = '(?![\\p{L}\\p{N}])';
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Longest alternatives first so "got paid" beats "paid". */
+function altRegex(list: string[], boundaries: boolean): RegExp {
+  const sorted = [...list].sort((a, b) => b.length - a.length).map(escapeRegex);
+  const body = `(?:${sorted.join('|')})`;
+  return new RegExp(boundaries ? `${WB_START}${body}${WB_END}` : body, 'iu');
+}
+
+interface Compiled {
+  pack: LanguagePack;
+  incomeRe: RegExp;
+  expenseRe: RegExp;
+  keywordIndex: Map<string, { categoryId: string; kind: TxType }>;
+  keywordPhrases: string[]; // sorted longest first (for cjk)
+  maxPhraseWords: number;
+  stopwords: Set<string>;
+}
+
+const INCOME_IDS = new Set(['salary', 'freelance', 'gift_income', 'other_income']);
+const cache = new Map<string, Compiled>();
+
+function compile(pack: LanguagePack): Compiled {
+  const cached = cache.get(pack.code);
+  if (cached) return cached;
+  const boundaries = pack.tokenizer === 'space';
+  const keywordIndex = new Map<string, { categoryId: string; kind: TxType }>();
+  let maxPhraseWords = 1;
+  for (const [categoryId, words] of Object.entries(pack.keywords)) {
+    const kind: TxType = INCOME_IDS.has(categoryId) ? 'income' : 'expense';
+    for (const raw of words) {
+      const w = pack.tokenizer === 'cjk' ? raw.replace(/\s+/g, '') : raw;
+      if (!keywordIndex.has(w)) keywordIndex.set(w, { categoryId, kind });
+      maxPhraseWords = Math.max(maxPhraseWords, w.split(' ').length);
+    }
+  }
+  const c: Compiled = {
+    pack,
+    incomeRe: altRegex(pack.incomeVerbs, boundaries),
+    expenseRe: altRegex(pack.expenseVerbs, boundaries),
+    keywordIndex,
+    keywordPhrases: [...keywordIndex.keys()].sort((a, b) => b.length - a.length),
+    maxPhraseWords,
+    stopwords: new Set(pack.stopwords),
+  };
+  cache.set(pack.code, c);
+  return c;
+}
+
+export function normalize(text: string, pack: LanguagePack): string {
+  let t = text
     .toLowerCase()
+    .replace(/[０-９]/g, (d) => String(d.charCodeAt(0) - 0xff10))
+    .replace(/：/g, ':')
     .replace(/[“”"]/g, '')
     .replace(/’/g, "'")
-    .replace(/(\d),(\d{3})\b/g, '$1$2') // 2,400 -> 2400
-    .replace(/[!?]+/g, ' ')
+    .replace(/[!?！？]+/g, ' ')
+    .replace(/[，、]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  if (pack.decimalComma) t = normalizeDecimalComma(t);
+  return t;
 }
 
 interface AmountExtraction {
@@ -61,24 +135,24 @@ interface AmountExtraction {
 }
 
 /**
- * Finds the money amount. Prefers numbers with a currency marker ($12, 12 dollars),
- * then the first bare number. Numbers that look like ordinals, times or
- * percentages are ignored.
+ * Finds the money amount. Prefers numbers with a currency marker ($12, 12 dollars, 12块),
+ * then the first bare number. Ordinals, times and percentages are ignored.
  */
-export function extractAmount(text: string): AmountExtraction {
+export function extractAmount(text: string, pack: LanguagePack): AmountExtraction {
   const candidates: { value: number; start: number; end: number; marked: boolean }[] = [];
-  const re = /(?:(\$|€|£|¥|₹)\s?)?(\d+(?:\.\d+)?)(?:\s?(\$|€|£|¥|₹))?(?:\s?(dollars?|bucks?|usd|euros?|eur|pounds?|gbp|quid|cad|aud|yen|rupees?|inr|pesos?|kr|chf))?/g;
+  const marker = pack.currencyMarkers.source;
+  const re = new RegExp(`(?:(${marker})\\s?)?(\\d+(?:\\.\\d+)?)(?:\\s?(${marker}))?`, 'giu');
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     const full = m[0];
-    const after = text.slice(m.index + full.length, m.index + full.length + 6);
+    const after = text.slice(m.index + full.length, m.index + full.length + 8);
     const before = text.slice(Math.max(0, m.index - 3), m.index);
-    const marked = Boolean(m[1] || m[3] || m[4]);
+    const marked = Boolean(m[1] || m[3]);
     if (!marked) {
-      if (/^(st|nd|rd|th|%|\s?%|\s?(am|pm)\b|:\d|\s?o'clock|\s?x\b)/i.test(after)) continue; // ordinals, percent, times
-      if (/\d[.\-/]$/.test(before)) continue; // part of a date like 9/3 or 2025-09-03
+      if (/^(st|nd|rd|th|º|ª|°|\.|%|\s?%|\s?(am|pm)\b|:\d|\s?o'clock|\s?x\b|\s?uhr\b|\s?h\b|時|点|시|月|日|월|일|年|년)/iu.test(after) && !/^\.\s/.test(after)) continue;
+      if (/\d[.\-/]$/.test(before)) continue;
       if (/^[.\-/]\d/.test(after)) continue;
-      if (/^\s?(people|persons|items?|tickets?|days?|weeks?|months?|years?|hours?|minutes?|miles?|km|kg|lbs?|oz|pack|packs|of)\b/i.test(after)) continue;
+      if (/^\s?(people|persons|items?|tickets?|days?|weeks?|months?|years?|hours?|minutes?|miles?|km|kg|lbs?|oz|packs?|of|personas|personnes|persone|personen|个人|名|人|명)\b/iu.test(after)) continue;
     }
     const value = Number(m[2]);
     if (!Number.isFinite(value)) continue;
@@ -96,23 +170,10 @@ export function extractAmount(text: string): AmountExtraction {
 
 function tokenize(text: string): string[] {
   return text
-    .replace(/[^a-z0-9'&+\-\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}'&+\-\s]/gu, ' ')
     .split(/\s+/)
     .map((t) => t.replace(/^'+|'+$/g, ''))
     .filter(Boolean);
-}
-
-/** Candidate singular forms, most likely first ("coffees" -> "coffee", "taxes" -> "tax", "berries" -> "berry"). */
-function singularForms(word: string): string[] {
-  const out: string[] = [];
-  if (word.length > 4 && word.endsWith('ies')) out.push(word.slice(0, -3) + 'y');
-  if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss')) out.push(word.slice(0, -1));
-  if (word.length > 4 && word.endsWith('es')) out.push(word.slice(0, -2));
-  return out;
-}
-
-function singular(word: string): string {
-  return singularForms(word)[0] ?? word;
 }
 
 interface CategoryMatch {
@@ -126,180 +187,192 @@ interface CategoryMatch {
  * Category detection. Priority: learned keywords > custom category names >
  * built-in dictionary (longer phrases first). Returns null when nothing matched.
  */
-export function detectCategory(text: string, ctx: ParseContext): CategoryMatch | null {
-  const tokens = tokenize(text);
-  const active = ctx.categories.filter((c) => !c.archived);
-  const byId = new Map(active.map((c) => [c.id, c]));
+export function detectCategory(text: string, ctx: ParseContext, pack: LanguagePack = getPack(ctx.language)): CategoryMatch | null {
+  const c = compile(pack);
+  const active = ctx.categories.filter((cat) => !cat.archived);
+  const byId = new Map(active.map((cat) => [cat.id, cat]));
 
-  // Custom (non-default) category names act as keywords too.
   const customNameIndex = new Map<string, Category>();
-  for (const c of active) {
-    if (c.isDefault) continue;
-    const words = tokenize(c.name.toLowerCase()).filter((w) => !STOPWORDS.has(w));
-    if (words.length) customNameIndex.set(words.join(' '), c);
-    for (const w of words) if (w.length > 2 && !customNameIndex.has(w)) customNameIndex.set(w, c);
+  for (const cat of active) {
+    if (cat.isDefault) continue;
+    const name = cat.name.toLowerCase().trim();
+    if (name) customNameIndex.set(name, cat);
+    if (pack.tokenizer === 'space') {
+      const words = tokenize(name).filter((w) => !c.stopwords.has(w));
+      if (words.length) customNameIndex.set(words.join(' '), cat);
+      for (const w of words) if (w.length > 2 && !customNameIndex.has(w)) customNameIndex.set(w, cat);
+    }
   }
 
-  for (let len = MAX_PHRASE_WORDS; len >= 1; len -= 1) {
+  const lookup = (phrase: string, len: number): CategoryMatch | null => {
+    const learned = ctx.keywordMap[phrase];
+    if (learned && byId.has(learned)) return { categoryId: learned, kind: byId.get(learned)!.kind, confidence: 0.95, matched: phrase };
+    const custom = customNameIndex.get(phrase);
+    if (custom) return { categoryId: custom.id, kind: custom.kind, confidence: 0.9, matched: phrase };
+    const entry = c.keywordIndex.get(phrase);
+    if (entry && byId.has(entry.categoryId)) return { categoryId: entry.categoryId, kind: entry.kind, confidence: len > 1 ? 0.9 : 0.8, matched: phrase };
+    return null;
+  };
+
+  if (pack.tokenizer === 'cjk') {
+    const compact = text.replace(/\s+/g, '');
+    // Learned and custom phrases first (longest first), then the dictionary.
+    const learnedPhrases = Object.keys(ctx.keywordMap).sort((a, b) => b.length - a.length);
+    for (const p of learnedPhrases) if (p && compact.includes(p.replace(/\s+/g, ''))) { const r = lookup(p, 2); if (r) return r; }
+    const customPhrases = [...customNameIndex.keys()].sort((a, b) => b.length - a.length);
+    for (const p of customPhrases) if (p && compact.includes(p.replace(/\s+/g, ''))) { const r = lookup(p, 2); if (r) return r; }
+    for (const p of c.keywordPhrases) if (compact.includes(p)) { const r = lookup(p, p.length > 1 ? 2 : 1); if (r) return r; }
+    return null;
+  }
+
+  const tokens = tokenize(text);
+  for (let len = Math.max(c.maxPhraseWords, 3); len >= 1; len -= 1) {
     for (let i = 0; i + len <= tokens.length; i += 1) {
       const phrase = tokens.slice(i, i + len).join(' ');
-      const variants = len === 1 ? [phrase, ...singularForms(phrase)] : [phrase];
+      const variants = len === 1 && pack.singularForms ? [phrase, ...pack.singularForms(phrase)] : [phrase];
       for (const v of variants) {
-        const learned = ctx.keywordMap[v];
-        if (learned && byId.has(learned)) {
-          return { categoryId: learned, kind: byId.get(learned)!.kind, confidence: 0.95, matched: v };
-        }
-        const custom = customNameIndex.get(v);
-        if (custom) return { categoryId: custom.id, kind: custom.kind, confidence: 0.9, matched: v };
-        const entry = KEYWORDS.get(v);
-        if (entry && byId.has(entry.categoryId)) {
-          return { categoryId: entry.categoryId, kind: entry.kind, confidence: len > 1 ? 0.9 : 0.8, matched: v };
-        }
+        const r = lookup(v, len);
+        if (r) return r;
       }
     }
   }
   return null;
 }
 
-function detectType(text: string): { type: TxType | null; confidence: number; verb: string | null } {
-  const income = text.match(INCOME_VERB_RE);
+function detectType(text: string, c: Compiled): { type: TxType | null; confidence: number; verb: string | null } {
+  const income = text.match(c.incomeRe);
   if (income) return { type: 'income', confidence: 0.9, verb: income[0] };
-  const expense = text.match(EXPENSE_VERB_RE);
+  const expense = text.match(c.expenseRe);
   if (expense) return { type: 'expense', confidence: 0.9, verb: expense[0] };
   return { type: null, confidence: 0, verb: null };
 }
 
-const LEADING_FILLER = /^(?:(?:i|we|just|then|and|so|also|today|ok|okay|um|uh|please|note|log|add|record|entry|new|expense|income|spent|spend|paid|pay|bought|buy|purchased|got|get|received|earned|made|cost|for|on|at|of|to|in|from|the|a|an|some|my|our|about|around|roughly|another)\s+)+/;
-const TRAILING_FILLER = /(?:\s+(?:today|yesterday|for|on|at|of|to|in|from|the|a|an|and|with|each|total|again|please|thanks|it|that|this))+$/;
-
 /** Turns the leftover words into a short human note. */
-export function deriveNote(leftover: string): string | null {
+export function deriveNote(leftover: string, pack: LanguagePack): string | null {
   let s = leftover
-    .replace(CURRENCY_WORDS, ' ')
-    .replace(/\b(cents?)\b/g, ' ')
-    .replace(/[,;:]+/g, ' ')
+    .replace(pack.currencyWords, ' ')
+    .replace(/[,;:，、。]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  s = s.replace(LEADING_FILLER, '').replace(TRAILING_FILLER, '').trim();
+  for (const re of pack.noteStrip) s = s.replace(re, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(pack.leadingFiller, '').replace(pack.trailingFiller, '').trim();
   s = s.replace(/^[\-–—.]+|[\-–—.]+$/g, '').trim();
   if (!s) return null;
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function findGoal(name: string, goals: Goal[]): Goal | null {
-  const needle = name.toLowerCase().trim();
+function findGoal(name: string, goals: Goal[], c: Compiled): Goal | null {
+  const needle = name.toLowerCase().replace(/\s+/g, c.pack.tokenizer === 'cjk' ? '' : ' ').trim();
   if (!needle) return null;
   const open = goals.filter((g) => !g.completed);
-  const exact = open.find((g) => g.name.toLowerCase() === needle);
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, c.pack.tokenizer === 'cjk' ? '' : ' ').trim();
+  const exact = open.find((g) => norm(g.name) === needle);
   if (exact) return exact;
-  const contains = open.find((g) => needle.includes(g.name.toLowerCase()) || g.name.toLowerCase().includes(needle));
+  const contains = open.find((g) => needle.includes(norm(g.name)) || norm(g.name).includes(needle));
   if (contains) return contains;
-  const needleWords = new Set(tokenize(needle).filter((w) => !STOPWORDS.has(w)));
+  if (c.pack.tokenizer === 'cjk') return null;
+  const needleWords = new Set(tokenize(needle).filter((w) => !c.stopwords.has(w)));
   let best: { goal: Goal; score: number } | null = null;
   for (const g of open) {
-    const words = tokenize(g.name.toLowerCase()).filter((w) => !STOPWORDS.has(w));
-    const overlap = words.filter((w) => needleWords.has(w) || needleWords.has(singular(w))).length;
+    const words = tokenize(g.name.toLowerCase()).filter((w) => !c.stopwords.has(w));
+    const overlap = words.filter((w) => needleWords.has(w) || (c.pack.singularForms?.(w) ?? []).some((f) => needleWords.has(f))).length;
     if (overlap > 0 && (!best || overlap > best.score)) best = { goal: g, score: overlap };
   }
   return best?.goal ?? null;
 }
 
-const ARTICLES = /^(?:(?:a|an|the|my|our|some|new)\s+)+/;
-
-function cleanGoalName(s: string): string | null {
-  let name = s.replace(/\bgoal\b/g, ' ').replace(CURRENCY_WORDS, ' ').replace(/\s+/g, ' ').trim();
-  name = name.replace(ARTICLES, '').replace(/[.,;:!]+$/g, '').trim();
-  name = name.replace(/^(?:to|for)\s+/, '').trim();
+function cleanGoalName(s: string, pack: LanguagePack): string | null {
+  const goalWordRe = new RegExp(`${WB_START}(?:${pack.goalWords})${WB_END}`, 'giu');
+  let name = s.replace(goalWordRe, ' ').replace(pack.currencyWords, ' ').replace(/\s+/g, ' ').trim();
+  for (const re of pack.noteStrip) name = name.replace(re, ' ').replace(/\s+/g, ' ').trim();
+  name = name.replace(pack.trailingFiller, '').replace(pack.articles, '').replace(/[.,;:!。]+$/g, '').trim();
+  name = name.replace(new RegExp(`^(?:${pack.forWords})\\s+`, 'iu'), '').trim();
   if (!name) return null;
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 function baseResult(raw: string, today: string): ParseResult {
   return {
-    kind: 'unknown',
-    raw,
-    amount: null,
-    type: 'expense',
-    typeConfidence: 0,
-    categoryId: null,
-    categoryConfidence: 0,
-    note: null,
-    occurredAt: today,
-    dateExplicit: false,
-    goalName: null,
-    targetDate: null,
-    goalId: null,
-    confidence: 0,
-    needsReview: true,
-    hints: [],
+    kind: 'unknown', raw, amount: null, type: 'expense', typeConfidence: 0, categoryId: null, categoryConfidence: 0,
+    note: null, occurredAt: today, dateExplicit: false, goalName: null, targetDate: null, goalId: null,
+    confidence: 0, needsReview: true, hints: [],
   };
 }
 
-const GOAL_LEAD = /^(?:goal|new goal|savings goal|saving goal|set (?:a )?goal|create (?:a )?goal)\s*:?\s*/;
-const GOAL_INTENT = /\b(?:i(?:'d| would)? (?:want|like|need|plan|am trying|'m trying) to (?:save|put away|set aside|have)|want to save|save up|saving up|trying to save|need to save|save)\b/;
-const CONTRIBUTION_RE = /\b(?:add(?:ed)?|put|moved?|saved?|set aside|transfer(?:red)?|deposit(?:ed)?|contribut(?:ed|e)|stashed|stash|tucked away|threw)\b/;
-
-function parseGoal(afterLead: string, raw: string, ctx: ParseContext, viaLead: boolean): ParseResult {
+function parseGoal(afterLead: string, raw: string, ctx: ParseContext, pack: LanguagePack): ParseResult {
   const r = baseResult(raw, ctx.today);
   r.kind = 'goal';
-  const future = extractFutureDate(afterLead, ctx.today);
+  const future = applyRules(pack.futureDateRules, afterLead, ctx.today);
   r.targetDate = future.date;
-  const amt = extractAmount(future.text);
+  const amt = extractAmount(future.text, pack);
   r.amount = amt.amount;
-  let rest = amt.text;
-  rest = rest.replace(GOAL_INTENT, ' ').replace(/\b(?:goal|by|before|until|deadline)\b\s*$/g, ' ').replace(/\s+/g, ' ').trim();
-  // Name: prefer "for X", else the leftover.
-  const forMatch = rest.match(/\bfor\s+(.+)$/);
-  const namePart = forMatch ? forMatch[1] : rest.replace(/^(?:to|for)\s+/, '');
-  r.goalName = cleanGoalName(namePart) ?? (viaLead ? null : null);
+  let rest = amt.text.replace(new RegExp(pack.goalIntent.source, 'giu'), ' ').replace(/\s+/g, ' ').trim();
+  const forWord = pack.tokenizer === 'cjk'
+    ? new RegExp(`^(.+?)(?:${pack.forWords})`, 'u')
+    : new RegExp(`${WB_START}(?:${pack.forWords})\\s+(.+)$`, 'iu');
+  let namePart: string;
+  if (pack.tokenizer === 'cjk') {
+    namePart = rest.replace(new RegExp(`(?:${pack.forWords})`, 'gu'), ' ');
+  } else {
+    const forMatch = rest.match(forWord);
+    namePart = forMatch ? forMatch[1] : rest.replace(new RegExp(`^(?:${pack.forWords})\\s+`, 'iu'), '');
+  }
+  r.goalName = cleanGoalName(namePart, pack);
   r.confidence = (r.amount ? 0.6 : 0.2) + (r.goalName ? 0.3 : 0) + (r.targetDate ? 0.1 : 0);
-  if (!r.amount) r.hints.push('How much do you want to save in total?');
-  if (!r.goalName) r.hints.push('What is this goal for?');
-  if (!r.targetDate) r.hints.push('No target date yet. You can add one, or leave it open.');
+  if (!r.amount) r.hints.push(HINT.goalAmount);
+  if (!r.goalName) r.hints.push(HINT.goalName);
+  if (!r.targetDate) r.hints.push(HINT.goalNoDate);
   r.needsReview = !r.amount || !r.goalName;
   return r;
 }
 
 /**
- * Tier 1 parser: rule-based, instant, offline. Handles the common phrasings.
- * Returns a ParseResult the confirmation card can show and the user can edit.
+ * Tier 1 parser: rule-based, instant, offline. Handles the common phrasings
+ * in the selected language. Returns a ParseResult the confirmation card can
+ * show and the user can edit.
  */
 export function parseInput(input: string, ctx: ParseContext): ParseResult {
+  const pack = getPack(ctx.language);
+  const c = compile(pack);
   const raw = input.trim();
   if (!raw) return baseResult(raw, ctx.today);
-  let text = replaceNumberWords(normalize(raw));
+  let text = pack.numberWords(normalize(raw, pack));
 
   // ---- Goal creation ----
-  const lead = text.match(GOAL_LEAD);
-  if (lead) return parseGoal(text.slice(lead[0].length), raw, ctx, true);
-  const intent = text.match(GOAL_INTENT);
-  if (intent && !/\b(saved|stashed|moved|added|put|transferred|deposited)\b/.test(text)) {
-    // "save 500 for a trip by december", "i want to save 2000 for an emergency fund"
-    const looksLikeGoal = /\bfor\b/.test(text) || /\bby\b/.test(text) || /\bgoal\b/.test(text) || intent[0] !== 'save';
-    if (looksLikeGoal) return parseGoal(text, raw, ctx, false);
+  const lead = text.match(pack.goalLead);
+  if (lead) return parseGoal(text.slice(lead[0].length), raw, ctx, pack);
+  const intent = text.match(pack.goalIntent);
+  if (intent && !pack.goalPastVerbs.test(text)) {
+    const forRe = new RegExp(pack.tokenizer === 'cjk' ? `(?:${pack.forWords})` : `${WB_START}(?:${pack.forWords})${WB_END}`, 'iu');
+    const hasDate = applyRules(pack.futureDateRules, text, ctx.today).date != null;
+    const bare = pack.tokenizer === 'space' && intent[0].trim().split(' ').length === 1;
+    const looksLikeGoal = forRe.test(text) || hasDate || !bare;
+    if (looksLikeGoal) return parseGoal(text, raw, ctx, pack);
   }
 
   // ---- Contribution to an existing goal ----
-  if (ctx.goals.some((g) => !g.completed) && CONTRIBUTION_RE.test(text)) {
-    const m = text.match(/\b(?:to|toward|towards|into|for|in)\s+(?:my\s+|the\s+|our\s+)?(.+?)(?:\s+goal)?$/);
-    const goal = m ? findGoal(m[1], ctx.goals) : null;
+  if (ctx.goals.some((g) => !g.completed) && pack.contributionVerbs.test(text)) {
+    const m = pack.tokenizer === 'cjk'
+      ? text.match(new RegExp(`(.+?)(?:${pack.contributionPreps})`, 'u'))
+      : text.match(new RegExp(`${WB_START}(?:${pack.contributionPreps})\\s+(?:${pack.articles.source.replace(/^\^|\+$/g, '')})?(.+?)(?:\\s+(?:${pack.goalWords}))?$`, 'iu'));
+    const goal = m ? findGoal(m[1].replace(pack.currencyWords, ' ').replace(/\d+(?:\.\d+)?/g, ' ').replace(new RegExp(pack.contributionVerbs.source, 'gu'), ' ').trim(), ctx.goals, c) : null;
     if (goal) {
       const r = baseResult(raw, ctx.today);
-      const dated = extractPastDate(text, ctx.today);
+      const dated = applyRules(pack.pastDateRules, text, ctx.today);
       if (dated.date) { r.occurredAt = dated.date; r.dateExplicit = true; }
-      const amt = extractAmount(dated.text);
+      const amt = extractAmount(dated.text, pack);
       r.kind = 'contribution';
       r.goalId = goal.id;
       r.goalName = goal.name;
       r.amount = amt.amount;
       r.type = 'expense';
       r.typeConfidence = 0.9;
-      r.categoryId = ctx.categories.find((c) => c.id === 'savings' && !c.archived)?.id ?? null;
+      r.categoryId = ctx.categories.find((cat) => cat.id === 'savings' && !cat.archived)?.id ?? null;
       r.categoryConfidence = 0.9;
-      r.note = `Toward ${goal.name}`;
+      r.note = null;
       r.confidence = r.amount ? 0.9 : 0.3;
       r.needsReview = !r.amount;
-      if (!r.amount) r.hints.push(`How much did you add to ${goal.name}?`);
+      if (!r.amount) r.hints.push(HINT.contributionAmount);
       return r;
     }
   }
@@ -308,26 +381,22 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
   const r = baseResult(raw, ctx.today);
   r.kind = 'transaction';
 
-  const dated = extractPastDate(text, ctx.today);
-  if (dated.date) {
-    r.occurredAt = dated.date;
-    r.dateExplicit = true;
-  }
+  const dated = applyRules(pack.pastDateRules, text, ctx.today);
+  if (dated.date) { r.occurredAt = dated.date; r.dateExplicit = true; }
   text = dated.text;
 
-  const amt = extractAmount(text);
+  const amt = extractAmount(text, pack);
   r.amount = amt.amount;
   text = amt.text;
 
-  const typeGuess = detectType(text);
-  const cat = detectCategory(text, ctx);
+  const typeGuess = detectType(text, c);
+  const cat = detectCategory(text, ctx, pack);
 
   let type: TxType;
   let typeConfidence: number;
   if (typeGuess.type) {
     type = typeGuess.type;
     typeConfidence = typeGuess.confidence;
-    // A strong income verb with an expense-only category (or vice-versa) is a mild conflict.
     if (cat && cat.kind !== type && cat.confidence >= 0.9) typeConfidence = 0.7;
   } else if (cat) {
     type = cat.kind;
@@ -339,36 +408,34 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
   r.type = type;
   r.typeConfidence = typeConfidence;
 
+  const has = (id: string) => ctx.categories.some((cat2) => cat2.id === id && !cat2.archived);
   if (cat && cat.kind === type) {
     r.categoryId = cat.categoryId;
     r.categoryConfidence = cat.confidence;
   } else if (cat && cat.kind !== type) {
-    // e.g. "spent 20 on a gift": "gift" maps to income Gift but the verb says expense -> shopping/other.
     const remapped = cat.categoryId === 'gift_income' ? 'shopping' : null;
     const fallback = type === 'income' ? FALLBACK_INCOME_CATEGORY_ID : FALLBACK_EXPENSE_CATEGORY_ID;
-    const target = remapped && ctx.categories.some((c) => c.id === remapped && !c.archived) ? remapped : fallback;
-    r.categoryId = ctx.categories.some((c) => c.id === target && !c.archived) ? target : null;
+    const target = remapped && has(remapped) ? remapped : fallback;
+    r.categoryId = has(target) ? target : null;
     r.categoryConfidence = remapped ? 0.7 : 0.35;
   } else {
     const fallback = type === 'income' ? FALLBACK_INCOME_CATEGORY_ID : FALLBACK_EXPENSE_CATEGORY_ID;
-    r.categoryId = ctx.categories.some((c) => c.id === fallback && !c.archived) ? fallback : null;
+    r.categoryId = has(fallback) ? fallback : null;
     r.categoryConfidence = 0.35;
   }
 
-  // Note: leftover words minus the verb that told us the type.
   let leftover = text;
   if (typeGuess.verb) leftover = leftover.replace(typeGuess.verb, ' ');
-  r.note = deriveNote(leftover);
+  r.note = deriveNote(leftover, pack);
 
-  // Confidence and hints
   if (!r.amount) {
     r.confidence = 0;
-    r.hints.push("I couldn't find an amount.");
+    r.hints.push(HINT.noAmount);
   } else {
     r.confidence = Math.min(amt.confidence, 0.5 * typeConfidence + 0.5 * Math.max(r.categoryConfidence, 0.35) + 0.15);
-    if (amt.multiple && amt.confidence < 0.8) r.hints.push('I saw more than one number. Check the amount.');
-    if (r.categoryConfidence < 0.5) r.hints.push('Not sure about the category. Tap it to change.');
-    if (typeConfidence < 0.7) r.hints.push(type === 'expense' ? 'I assumed this was money out.' : 'I assumed this was money in.');
+    if (amt.multiple && amt.confidence < 0.8) r.hints.push(HINT.multipleNumbers);
+    if (r.categoryConfidence < 0.5) r.hints.push(HINT.unsureCategory);
+    if (typeConfidence < 0.7) r.hints.push(type === 'expense' ? HINT.assumedExpense : HINT.assumedIncome);
   }
   r.confidence = Math.max(0, Math.min(1, r.confidence));
   r.needsReview = !r.amount || r.confidence < 0.55;
@@ -377,17 +444,27 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
 
 /**
  * Words from a phrase worth remembering when the user corrects the category.
- * Skips stopwords, numbers and anything shorter than three letters.
+ * Skips stopwords, numbers and anything shorter than three letters. For CJK
+ * languages the whole leftover phrase is remembered as one key.
  */
-export function learnableWords(rawInput: string): string[] {
-  const text = replaceNumberWords(normalize(rawInput));
-  const dated = extractPastDate(text, '2000-01-01');
-  const amt = extractAmount(dated.text);
-  const words = tokenize(amt.text.replace(CURRENCY_WORDS, ' '));
+export function learnableWords(rawInput: string, language?: string): string[] {
+  const pack = getPack(language);
+  const c = compile(pack);
+  const text = pack.numberWords(normalize(rawInput, pack));
+  const dated = applyRules(pack.pastDateRules, text, '2000-01-01');
+  const amt = extractAmount(dated.text, pack);
+  let leftover = amt.text.replace(pack.currencyWords, ' ');
+  leftover = leftover.replace(c.incomeRe, ' ').replace(c.expenseRe, ' ');
+  if (pack.tokenizer === 'cjk') {
+    const note = deriveNote(leftover, pack);
+    const key = note?.toLowerCase().replace(/\s+/g, '') ?? '';
+    return key.length >= 1 && key.length <= 12 ? [key] : [];
+  }
+  const words = tokenize(leftover);
   const out: string[] = [];
   for (const w of words) {
-    if (w.length < 3 || STOPWORDS.has(w) || /^\d+$/.test(w)) continue;
-    if (INCOME_VERB_RE.test(w) || EXPENSE_VERB_RE.test(w)) continue;
+    if (w.length < 3 || c.stopwords.has(w) || /^\d+$/.test(w)) continue;
+    if (c.incomeRe.test(w) || c.expenseRe.test(w)) continue;
     if (!out.includes(w)) out.push(w);
   }
   return out;

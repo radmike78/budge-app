@@ -28,7 +28,7 @@ describe('summaryText', () => {
 });
 
 describe('backup round trip', () => {
-  const settings: Settings = { currency: 'USD', theme: 'system', lastBackupAt: null, startingBalance: null, onboardingDone: true, reminderEnabled: false, reminderHour: 20, smartParseEnabled: false };
+  const settings: Settings = { currency: 'USD', theme: 'system', lastBackupAt: null, startingBalance: null, onboardingDone: true, reminderEnabled: false, reminderHour: 20, smartParseEnabled: false, language: 'system' };
   const payload = buildBackup({ settings, categories: DEFAULT_CATEGORIES, transactions: tx, recurringRules: [], goals: [], keywords: [] }, '2026-09-10T00:00:00.000Z');
 
   it('validates payloads', () => {
@@ -47,7 +47,7 @@ describe('backup round trip', () => {
     const random = (n: number) => new Uint8Array(Array.from({ length: n }, () => (seed = (seed * 16807) % 2147483647) & 255));
     const json = JSON.stringify(payload);
     const file = encryptBackup(json, 'correct horse', random);
-    expect(file.ciphertext).not.toContain('plainly');
+    expect(file.ciphertext).not.toContain('onlybudget');
     expect(decryptBackup(file, 'correct horse')).toBe(json);
     expect(() => decryptBackup(file, 'wrong')).toThrow();
   });

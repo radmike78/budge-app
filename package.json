@@ -1,5 +1,5 @@
 {
-  "name": "plainly",
+  "name": "onlybudget",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "private": true,
@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "icons": "node scripts/generate-icons.js"
+    "icons": "node scripts/generate-icons.js",
+    "build:web": "expo export --platform web --output-dir dist && node scripts/postbuild-web.js dist"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -24,6 +25,7 @@
     "expo-file-system": "~57.0.6",
     "expo-haptics": "~57.0.2",
     "expo-linking": "~57.0.9",
+    "expo-localization": "~57.0.1",
     "expo-notifications": "~57.0.17",
     "expo-router": "~57.0.20",
     "expo-secure-store": "~57.0.3",
@@ -39,6 +41,7 @@
     "react-native-reanimated": "^4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-web": "^0.21.2",
     "react-native-worklets": "^0.10.1",
     "zustand": "^5.0.15"
   },

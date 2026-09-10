@@ -8,27 +8,21 @@ import { queryTransactions } from '@/db/repositories';
 import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
 import { addDays, currentMonthKey, monthRange, shiftMonthKey, today } from '@/lib/dates';
-import { formatMoney } from '@/lib/money';
+import { categoryName, useMoney, useT } from '@/i18n';
 import { CategoryPicker } from '@/components/pickers';
 import { TransactionRow } from '@/components/TransactionRow';
 import { Chip, EmptyState, Field, Row, Text } from '@/components/ui';
 
 type Range = 'month' | 'last_month' | '90d' | 'all';
 
-const RANGES: { value: Range; label: string }[] = [
-  { value: 'month', label: 'This month' },
-  { value: 'last_month', label: 'Last month' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: 'all', label: 'All time' },
-];
-
 export default function HistoryScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const t = useT();
+  const money = useMoney();
   const insets = useSafeAreaInsets();
   const categories = useAppStore((s) => s.categories);
   const recent = useAppStore((s) => s.recent); // changes whenever data changes; used to re-query
-  const currency = useAppStore((s) => s.settings?.currency ?? 'USD');
   const [search, setSearch] = useState('');
   const [type, setType] = useState<TxType | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -36,11 +30,18 @@ export default function HistoryScreen() {
   const [showCat, setShowCat] = useState(false);
   const [rows, setRows] = useState<Transaction[]>([]);
 
+  const ranges: { value: Range; label: string }[] = [
+    { value: 'month', label: t.rangeThisMonth },
+    { value: 'last_month', label: t.rangeLastMonth },
+    { value: '90d', label: t.range90d },
+    { value: 'all', label: t.rangeAll },
+  ];
+
   const bounds = useMemo(() => {
-    const t = today();
+    const now = today();
     if (range === 'month') return monthRange(currentMonthKey());
     if (range === 'last_month') return monthRange(shiftMonthKey(currentMonthKey(), -1));
-    if (range === '90d') return { start: addDays(t, -90), end: t };
+    if (range === '90d') return { start: addDays(now, -90), end: now };
     return { start: null, end: null };
   }, [range]);
 
@@ -59,19 +60,17 @@ export default function HistoryScreen() {
 
   const header = (
     <View style={{ paddingTop: spacing.sm }}>
-      <Field placeholder="Search notes, amounts…" value={search} onChangeText={setSearch} autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" style={{ marginBottom: spacing.sm }} />
+      <Field placeholder={t.searchPlaceholder} value={search} onChangeText={setSearch} autoCorrect={false} autoCapitalize="none" clearButtonMode="while-editing" style={{ marginBottom: spacing.sm }} />
       <Row style={{ flexWrap: 'wrap', marginBottom: spacing.sm }}>
-        {RANGES.map((r) => <Chip key={r.value} label={r.label} selected={range === r.value} onPress={() => setRange(r.value)} />)}
+        {ranges.map((r) => <Chip key={r.value} label={r.label} selected={range === r.value} onPress={() => setRange(r.value)} />)}
       </Row>
       <Row style={{ flexWrap: 'wrap', marginBottom: spacing.md }}>
-        <Chip label="All" selected={type === null} onPress={() => setType(null)} />
-        <Chip label="Money out" selected={type === 'expense'} onPress={() => setType('expense')} />
-        <Chip label="Money in" selected={type === 'income'} onPress={() => setType('income')} />
-        <Chip label={category ? `${category.icon ?? ''} ${category.name}`.trim() : 'Any category'} selected={!!categoryId} onPress={() => (categoryId ? setCategoryId(null) : setShowCat(true))} />
+        <Chip label={t.all} selected={type === null} onPress={() => setType(null)} />
+        <Chip label={t.moneyOut} selected={type === 'expense'} onPress={() => setType('expense')} />
+        <Chip label={t.moneyIn} selected={type === 'income'} onPress={() => setType('income')} />
+        <Chip label={category ? `${category.icon ?? ''} ${categoryName(category, t)}`.trim() : t.anyCategory} selected={!!categoryId} onPress={() => (categoryId ? setCategoryId(null) : setShowCat(true))} />
       </Row>
-      <Text variant="small" style={{ marginBottom: spacing.md }}>
-        {rows.length} {rows.length === 1 ? 'entry' : 'entries'} · in {formatMoney(totalIn, currency, { compact: true })} · out {formatMoney(totalOut, currency, { compact: true })}
-      </Text>
+      <Text variant="small" style={{ marginBottom: spacing.md }}>{t.historySummary(rows.length, money(totalIn, { compact: true }), money(totalOut, { compact: true }))}</Text>
     </View>
   );
 
@@ -79,10 +78,10 @@ export default function HistoryScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <FlatList
         data={rows}
-        keyExtractor={(t) => t.id}
+        keyExtractor={(tx) => tx.id}
         ListHeaderComponent={header}
         renderItem={({ item }) => <TransactionRow tx={item} onPress={() => router.push(`/entry/${item.id}`)} />}
-        ListEmptyComponent={<EmptyState title="No entries match" body="Try a wider date range or clear the filters." />}
+        ListEmptyComponent={<EmptyState title={t.noMatches} body={t.noMatchesBody} />}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: insets.bottom + spacing.xxl }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

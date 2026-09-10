@@ -2,13 +2,15 @@
  * Builders for the export formats. Pure functions; file writing lives in files.ts.
  */
 import type { Category, Goal, KeywordMapping, RecurringRule, Settings, Transaction } from '@/types';
+import type { LocaleDef } from '@/i18n/types';
+import { en } from '@/i18n/locales/en';
 import { monthLabel, monthKey } from './dates';
 import { formatMoney } from './money';
 
 export const BACKUP_VERSION = 1;
 
 export interface BackupPayload {
-  app: 'plainly';
+  app: 'onlybudget';
   version: number;
   exportedAt: string;
   settings: Settings;
@@ -26,8 +28,8 @@ function csvCell(v: string | number | null | undefined): string {
   return s;
 }
 
-export function transactionsToCsv(transactions: Transaction[], categories: Category[]): string {
-  const byId = new Map(categories.map((c) => [c.id, c.name]));
+export function transactionsToCsv(transactions: Transaction[], categories: Category[], nameOf: (c: Category) => string = (c) => c.name): string {
+  const byId = new Map(categories.map((c) => [c.id, nameOf(c)]));
   const header = ['date', 'type', 'amount', 'category', 'note', 'recurring', 'original_input', 'id'];
   const rows = [...transactions]
     .sort((a, b) => (a.occurredAt < b.occurredAt ? -1 : a.occurredAt > b.occurredAt ? 1 : a.createdAt.localeCompare(b.createdAt)))
@@ -45,9 +47,10 @@ export function transactionsToCsv(transactions: Transaction[], categories: Categ
 }
 
 /** A human-readable summary: totals per month, then per category. */
-export function summaryText(transactions: Transaction[], categories: Category[], goals: Goal[], currency: string, generatedAt: string): string {
+export function summaryText(transactions: Transaction[], categories: Category[], goals: Goal[], currency: string, generatedAt: string, locale: LocaleDef = en, nameOf: (c: Category) => string = (c) => c.name): string {
   const byId = new Map(categories.map((c) => [c.id, c]));
-  const money = (n: number) => formatMoney(n, currency);
+  const S = locale.s;
+  const money = (n: number) => formatMoney(n, currency, { format: locale.format });
   const months = new Map<string, Transaction[]>();
   for (const t of transactions) {
     const k = monthKey(t.occurredAt);
@@ -55,20 +58,21 @@ export function summaryText(transactions: Transaction[], categories: Category[],
     months.get(k)!.push(t);
   }
   const lines: string[] = [];
-  lines.push('Plainly summary');
-  lines.push(`Generated ${generatedAt.slice(0, 10)}`);
+  lines.push(S.summaryTitle);
+  lines.push(S.generated(generatedAt.slice(0, 10)));
   lines.push('');
-  if (months.size === 0) lines.push('No entries yet.');
+  if (months.size === 0) lines.push(S.noEntriesYet);
   for (const k of [...months.keys()].sort().reverse()) {
     const list = months.get(k)!;
     const income = list.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expenses = list.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    lines.push(monthLabel(k));
-    lines.push(`  In: ${money(income)}   Out: ${money(expenses)}   Net: ${money(income - expenses)}`);
+    lines.push(monthLabel(k, locale.format));
+    lines.push(S.inOutNet(money(income), money(expenses), money(income - expenses)));
     const perCat = new Map<string, number>();
     for (const t of list) {
       if (t.type !== 'expense') continue;
-      const name = t.categoryId ? byId.get(t.categoryId)?.name ?? 'Uncategorized' : 'Uncategorized';
+      const c = t.categoryId ? byId.get(t.categoryId) : undefined;
+      const name = c ? nameOf(c) : S.uncategorized;
       perCat.set(name, (perCat.get(name) ?? 0) + t.amount);
     }
     for (const [name, total] of [...perCat.entries()].sort((a, b) => b[1] - a[1])) {
@@ -78,22 +82,22 @@ export function summaryText(transactions: Transaction[], categories: Category[],
   }
   const openGoals = goals.filter((g) => !g.completed);
   if (openGoals.length) {
-    lines.push('Goals');
+    lines.push(S.goalsHeading);
     for (const g of openGoals) {
       lines.push(`  ${g.name}: ${money(g.currentAmount)} of ${money(g.targetAmount)}${g.targetDate ? ` by ${g.targetDate}` : ''}`);
     }
     lines.push('');
   }
-  lines.push('Made with Plainly. No bank linking, no ads, no tracking.');
+  lines.push(S.madeWith);
   return lines.join('\n');
 }
 
 export function buildBackup(data: Omit<BackupPayload, 'app' | 'version' | 'exportedAt'>, exportedAt: string): BackupPayload {
-  return { app: 'plainly', version: BACKUP_VERSION, exportedAt, ...data };
+  return { app: 'onlybudget', version: BACKUP_VERSION, exportedAt, ...data };
 }
 
 export function isBackupPayload(x: unknown): x is BackupPayload {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return o.app === 'plainly' && typeof o.version === 'number' && Array.isArray(o.categories) && Array.isArray(o.transactions) && Array.isArray(o.goals);
+  return o.app === 'onlybudget' && typeof o.version === 'number' && Array.isArray(o.categories) && Array.isArray(o.transactions) && Array.isArray(o.goals);
 }

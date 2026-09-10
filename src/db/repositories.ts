@@ -28,10 +28,10 @@ const toGoal = (r: GoalRow): Goal => ({
   id: r.id, name: r.name, targetAmount: r.target_amount, currentAmount: r.current_amount, targetDate: r.target_date, createdAt: r.created_at, completed: r.completed === 1,
 });
 
-type SettingsRow = { currency: string; theme: Settings['theme']; last_backup_at: string | null; starting_balance: number | null; onboarding_done: number; reminder_enabled: number; reminder_hour: number; smart_parse_enabled: number };
+type SettingsRow = { currency: string; theme: Settings['theme']; last_backup_at: string | null; starting_balance: number | null; onboarding_done: number; reminder_enabled: number; reminder_hour: number; smart_parse_enabled: number; language: string | null };
 const toSettings = (r: SettingsRow): Settings => ({
   currency: r.currency, theme: r.theme, lastBackupAt: r.last_backup_at, startingBalance: r.starting_balance, onboardingDone: r.onboarding_done === 1,
-  reminderEnabled: r.reminder_enabled === 1, reminderHour: r.reminder_hour, smartParseEnabled: r.smart_parse_enabled === 1,
+  reminderEnabled: r.reminder_enabled === 1, reminderHour: r.reminder_hour, smartParseEnabled: r.smart_parse_enabled === 1, language: r.language ?? 'system',
 });
 
 // ---------- transactions ----------
@@ -197,8 +197,8 @@ export async function getSettings(db: DB): Promise<Settings> {
 
 export async function saveSettings(db: DB, s: Settings): Promise<void> {
   await db.runAsync(
-    `UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = ?, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ? WHERE id = 1`,
-    [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.onboardingDone ? 1 : 0, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0],
+    `UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = ?, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ?, language = ? WHERE id = 1`,
+    [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.onboardingDone ? 1 : 0, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0, s.language ?? 'system'],
   );
 }
 
@@ -245,8 +245,8 @@ export async function replaceAllData(
     }
     const s = data.settings;
     await txn.runAsync(
-      'UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = 1, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ? WHERE id = 1',
-      [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0],
+      'UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = 1, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ?, language = ? WHERE id = 1',
+      [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0, s.language ?? 'system'],
     );
   });
 }

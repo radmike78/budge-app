@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { TxType } from '@/types';
 import { getDb } from '@/db/database';
@@ -8,6 +8,8 @@ import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
 import { newId } from '@/lib/ids';
 import { parseMoneyInput } from '@/lib/money';
+import { categoryName, useLocale, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { EmojiPicker } from '@/components/pickers';
 import { Button, Field, Row, Screen, Segmented, Text } from '@/components/ui';
 
@@ -15,13 +17,15 @@ export default function CategoryEditor() {
   const { id, kind: kindParam } = useLocalSearchParams<{ id: string; kind?: string }>();
   const router = useRouter();
   const { colors } = useTheme();
+  const t = useT();
+  const locale = useLocale();
   const categories = useAppStore((s) => s.categories);
   const save = useAppStore((s) => s.saveCategory);
   const remove = useAppStore((s) => s.removeCategory);
   const isNew = id === 'new';
   const existing = categories.find((c) => c.id === id);
 
-  const [name, setName] = useState(existing?.name ?? '');
+  const [name, setName] = useState(existing ? categoryName(existing, t) : '');
   const [icon, setIcon] = useState(existing?.icon ?? '🧾');
   const [kind, setKind] = useState<TxType>(existing?.kind ?? (kindParam === 'income' ? 'income' : 'expense'));
   const [limit, setLimit] = useState(existing?.monthlyLimit != null ? String(existing.monthlyLimit) : '');
@@ -35,15 +39,17 @@ export default function CategoryEditor() {
   }, [existing]);
 
   const onSave = async () => {
-    if (!name.trim()) { setError('Give it a name.'); return; }
-    const limitValue = limit.trim() ? parseMoneyInput(limit) : null;
+    if (!name.trim()) { setError(t.giveName); return; }
+    const limitValue = limit.trim() ? parseMoneyInput(limit, locale.format.decimal === ',') : null;
+    // A default category keeps its translated name unless the user actually changed it.
+    const renamed = existing?.isDefault && name.trim() === categoryName(existing, t) ? existing.name : name.trim();
     await save({
       id: existing?.id ?? newId(),
-      name: name.trim(),
+      name: renamed,
       icon,
       kind,
       monthlyLimit: kind === 'expense' && limitValue && limitValue > 0 ? limitValue : null,
-      isDefault: existing?.isDefault ?? false,
+      isDefault: existing?.isDefault && renamed === existing.name ? true : false,
       archived: existing?.archived ?? false,
       sortOrder: existing?.sortOrder ?? 50,
     });
@@ -56,39 +62,32 @@ export default function CategoryEditor() {
     router.back();
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert(
-      usage ? `Delete ${existing.name}?` : `Delete ${existing.name}?`,
-      usage ? `${usage} ${usage === 1 ? 'entry' : 'entries'} will keep their amounts but lose this category. Archiving keeps everything intact.` : 'This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => { await remove(existing.id); router.back(); } },
-      ],
-    );
+    if (await confirmDialog(t.deleteCategoryQ(categoryName(existing, t)), usage ? t.deleteCategoryUsed(usage) : t.cannotUndo, { confirmText: t.delete, cancelText: t.cancel, destructive: true })) { await remove(existing.id); router.back(); }
   };
 
   return (
     <Screen keyboard>
       <Row style={{ marginTop: spacing.sm, marginBottom: spacing.lg }} align="flex-end">
-        <Button tone="secondary" title={icon || '🧾'} onPress={() => setShowEmoji(true)} accessibilityLabel="Pick icon" />
-        <Field label="Name" value={name} onChangeText={setName} placeholder="e.g. Pets" style={{ flex: 1, marginBottom: 0 }} autoFocus={isNew} />
+        <Button tone="secondary" title={icon || '🧾'} onPress={() => setShowEmoji(true)} accessibilityLabel={t.pickIcon} />
+        <Field label={t.nameLabel} value={name} onChangeText={setName} placeholder={t.categoryNamePlaceholder} style={{ flex: 1, marginBottom: 0 }} autoFocus={isNew} />
       </Row>
       {!existing ? (
         <View style={{ marginBottom: spacing.lg }}>
-          <Segmented value={kind} onChange={setKind} options={[{ value: 'expense', label: 'Spending' }, { value: 'income', label: 'Income' }]} />
+          <Segmented value={kind} onChange={setKind} options={[{ value: 'expense', label: t.spendingKind }, { value: 'income', label: t.incomeKind }]} />
         </View>
       ) : null}
       {kind === 'expense' ? (
-        <Field label="Monthly limit (optional)" value={limit} onChangeText={setLimit} keyboardType="decimal-pad" placeholder="Leave blank for none" hint="A limit only adds a quiet progress bar. Nothing turns red." />
+        <Field label={t.monthlyLimit} value={limit} onChangeText={setLimit} keyboardType="decimal-pad" placeholder={t.limitPlaceholder} hint={t.limitHint} />
       ) : null}
-      {usage != null ? <Text variant="small" style={{ marginBottom: spacing.md }}>{usage} {usage === 1 ? 'entry uses' : 'entries use'} this category.</Text> : null}
+      {usage != null ? <Text variant="small" style={{ marginBottom: spacing.md }}>{t.entryUses(usage)}</Text> : null}
       {error ? <Text variant="small" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</Text> : null}
-      <Button title={isNew ? 'Add category' : 'Save'} onPress={onSave} />
+      <Button title={isNew ? t.addCategory : t.save} onPress={onSave} />
       {existing ? (
         <Row style={{ marginTop: spacing.md }}>
-          <Button tone="secondary" title={existing.archived ? 'Restore' : 'Archive'} onPress={toggleArchive} style={{ flex: 1 }} />
-          <Button tone="danger" title="Delete" onPress={onDelete} style={{ flex: 1 }} />
+          <Button tone="secondary" title={existing.archived ? t.restore : t.archive} onPress={toggleArchive} style={{ flex: 1 }} />
+          <Button tone="danger" title={t.delete} onPress={onDelete} style={{ flex: 1 }} />
         </Row>
       ) : null}
       <EmojiPicker visible={showEmoji} onClose={() => setShowEmoji(false)} onPick={setIcon} />

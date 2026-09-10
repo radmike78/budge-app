@@ -1,0 +1,19 @@
+# podman compose up --build   (or: docker compose up --build)
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: onlybudget-web:local
+    ports:
+      - "8080:8080"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

@@ -1,13 +1,15 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
-const REMINDER_ID = 'plainly-daily-reminder';
+const REMINDER_ID = 'onlybudget-daily-reminder';
 
 /**
  * One optional, gentle daily reminder. Never a badge, never a streak.
  * Returns false if permission was not granted.
  */
-export async function scheduleDailyReminder(hour: number): Promise<boolean> {
+/** Scheduled local notifications are a native-only feature; the web build reports false. */
+export async function scheduleDailyReminder(hour: number, text: { title: string; body: string } = { title: 'Anything to log today?', body: 'A quick "spent 12 on lunch" keeps the picture honest.' }): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
   const perm = await Notifications.getPermissionsAsync();
   let granted = perm.granted;
   if (!granted) {
@@ -29,8 +31,8 @@ export async function scheduleDailyReminder(hour: number): Promise<boolean> {
   await Notifications.scheduleNotificationAsync({
     identifier: REMINDER_ID,
     content: {
-      title: 'Anything to log today?',
-      body: 'A quick "spent 12 on lunch" keeps the picture honest.',
+      title: text.title,
+      body: text.body,
       sound: false,
     },
     trigger: {
@@ -44,6 +46,7 @@ export async function scheduleDailyReminder(hour: number): Promise<boolean> {
 }
 
 export async function cancelDailyReminder(): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
     await Notifications.cancelScheduledNotificationAsync(REMINDER_ID);
   } catch {
@@ -52,6 +55,7 @@ export async function cancelDailyReminder(): Promise<void> {
 }
 
 export function configureNotificationHandler(): void {
+  if (Platform.OS === 'web') return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
