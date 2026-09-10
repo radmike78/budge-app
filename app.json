@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Plainly",
+    "slug": "plainly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "plainly",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F6F3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.plainly.budget",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "app.plainly.budget",
+      "adaptiveIcon": {
+        "backgroundColor": "#3D6B5E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Plainly uses the microphone so you can speak an entry like \"spent 12 on lunch\". Audio is processed on your device.",
+          "speechRecognitionPermission": "Plainly uses speech recognition to turn what you say into a budget entry. Nothing is sent to us."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#3D6B5E",
+          "defaultChannel": "reminders"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F7F6F3",
+          "dark": {
+            "backgroundColor": "#141412"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
