@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { Ionicons } from '@expo/vector-icons';
 import type { Transaction } from '@/types';
@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { radius, spacing, useTheme } from '@/theme';
 import { friendlyDate, today } from '@/lib/dates';
 import { categoryName, useDateFormat, useMoney, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { Icon, Text } from './ui';
 
 export function TransactionRow({ tx, onPress, showDate = true }: { tx: Transaction; onPress?: () => void; showDate?: boolean }) {
@@ -19,12 +20,9 @@ export function TransactionRow({ tx, onPress, showDate = true }: { tx: Transacti
   const ref = useRef<SwipeableMethods>(null);
   const catName = category ? categoryName(category, t) : null;
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     ref.current?.close();
-    Alert.alert(t.removeEntryQ, `${money(tx.amount)} · ${tx.note ?? catName ?? ''}`, [
-      { text: t.keep, style: 'cancel' },
-      { text: t.remove, style: 'destructive', onPress: () => remove(tx.id) },
-    ]);
+    if (await confirmDialog(t.removeEntryQ, `${money(tx.amount)} · ${tx.note ?? catName ?? ''}`, { confirmText: t.remove, cancelText: t.keep, destructive: true })) remove(tx.id);
   };
 
   const renderRight = () => (

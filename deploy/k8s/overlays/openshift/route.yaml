@@ -1,0 +1,14 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: onlybudget-web
+spec:
+  # Leave host empty to let OpenShift assign <name>-<namespace>.<apps domain>.
+  to:
+    kind: Service
+    name: onlybudget-web
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

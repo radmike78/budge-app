@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Frequency, TxType } from '@/types';
 import { useAppStore } from '@/store/useAppStore';
@@ -8,6 +8,7 @@ import { friendlyDate, today } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { parseMoneyInput } from '@/lib/money';
 import { categoryName, useDateFormat, useLocale, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { CategoryPicker, DatePicker } from '@/components/pickers';
 import { Button, Chip, Field, Row, Screen, Segmented, Text } from '@/components/ui';
 
@@ -50,12 +51,9 @@ export default function RecurringEditor() {
     router.back();
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert(t.removeRecurringQ, t.removeRecurringBody, [
-      { text: t.keep, style: 'cancel' },
-      { text: t.remove, style: 'destructive', onPress: async () => { await remove(existing.id); router.back(); } },
-    ]);
+    if (await confirmDialog(t.removeRecurringQ, t.removeRecurringBody, { confirmText: t.remove, cancelText: t.keep, destructive: true })) { await remove(existing.id); router.back(); }
   };
 
   return (

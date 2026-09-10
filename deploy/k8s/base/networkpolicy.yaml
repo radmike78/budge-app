@@ -1,0 +1,15 @@
+# The web pod serves static files and never needs to talk to anything.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: onlybudget-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: onlybudget
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - ports:
+        - port: 8080
+          protocol: TCP
+  egress: []

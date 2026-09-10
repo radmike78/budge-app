@@ -1,0 +1,47 @@
+name: Container image
+
+# Builds the web image with Buildah (Podman's build engine) and pushes it to GHCR
+# on pushes to main and on version tags. Pull requests only build.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out tags
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tags=${GITHUB_REF#refs/tags/v} latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${GITHUB_SHA::7} edge" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build with Buildah
+        id: build
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: onlybudget-web
+          tags: ${{ steps.meta.outputs.tags }}
+          containerfiles: ./Containerfile
+          oci: true
+
+      - name: Push to GHCR
+        if: github.event_name != 'pull_request'
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ steps.build.outputs.image }}
+          tags: ${{ steps.build.outputs.tags }}
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}

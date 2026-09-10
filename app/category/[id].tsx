@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { TxType } from '@/types';
 import { getDb } from '@/db/database';
@@ -9,6 +9,7 @@ import { spacing, useTheme } from '@/theme';
 import { newId } from '@/lib/ids';
 import { parseMoneyInput } from '@/lib/money';
 import { categoryName, useLocale, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { EmojiPicker } from '@/components/pickers';
 import { Button, Field, Row, Screen, Segmented, Text } from '@/components/ui';
 
@@ -61,12 +62,9 @@ export default function CategoryEditor() {
     router.back();
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert(t.deleteCategoryQ(categoryName(existing, t)), usage ? t.deleteCategoryUsed(usage) : t.cannotUndo, [
-      { text: t.cancel, style: 'cancel' },
-      { text: t.delete, style: 'destructive', onPress: async () => { await remove(existing.id); router.back(); } },
-    ]);
+    if (await confirmDialog(t.deleteCategoryQ(categoryName(existing, t)), usage ? t.deleteCategoryUsed(usage) : t.cannotUndo, { confirmText: t.delete, cancelText: t.cancel, destructive: true })) { await remove(existing.id); router.back(); }
   };
 
   return (

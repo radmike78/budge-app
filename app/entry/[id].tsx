@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Transaction, TxType } from '@/types';
 import { getDb } from '@/db/database';
@@ -9,6 +9,7 @@ import { spacing, useTheme } from '@/theme';
 import { friendlyDate, today } from '@/lib/dates';
 import { parseMoneyInput } from '@/lib/money';
 import { categoryName, useDateFormat, useLocale, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { CategoryPicker, DatePicker } from '@/components/pickers';
 import { Button, Field, Row, Screen, Segmented, Text } from '@/components/ui';
 
@@ -58,11 +59,8 @@ export default function EditEntry() {
     router.back();
   };
 
-  const confirmDelete = () => {
-    Alert.alert(t.removeEntryQ, undefined, [
-      { text: t.keep, style: 'cancel' },
-      { text: t.remove, style: 'destructive', onPress: async () => { await remove(tx.id); router.back(); } },
-    ]);
+  const confirmDelete = async () => {
+    if (await confirmDialog(t.removeEntryQ, undefined, { confirmText: t.remove, cancelText: t.keep, destructive: true })) { await remove(tx.id); router.back(); }
   };
 
   return (

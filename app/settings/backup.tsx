@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import { getDb } from '@/db/database';
 import { allTransactions } from '@/db/repositories';
@@ -10,6 +10,7 @@ import { buildBackup, isBackupPayload, summaryText, transactionsToCsv } from '@/
 import { decryptBackup, encryptBackup, isEncryptedBackupFile } from '@/lib/backupCrypto';
 import { pickTextFile, shareTextFile, timestampForFilename } from '@/lib/files';
 import { categoryName, useLocale, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { Sheet } from '@/components/pickers';
 import { Button, Card, Field, Screen, SectionTitle, Text } from '@/components/ui';
 
@@ -85,12 +86,8 @@ export default function Backup() {
 
   const applyRestore = async (payload: unknown) => {
     if (!isBackupPayload(payload)) throw new Error(t.notBackupFile);
-    await new Promise<void>((resolve, reject) => {
-      Alert.alert(t.replaceEverythingQ, t.replaceEverythingBody(payload.transactions.length, payload.goals.length), [
-        { text: t.cancel, style: 'cancel', onPress: () => reject(new Error(t.cancelled)) },
-        { text: t.restore, style: 'destructive', onPress: () => resolve() },
-      ]);
-    });
+    const ok = await confirmDialog(t.replaceEverythingQ, t.replaceEverythingBody(payload.transactions.length, payload.goals.length), { confirmText: t.restore, cancelText: t.cancel, destructive: true });
+    if (!ok) throw new Error(t.cancelled);
     await restoreAll({ settings: { ...payload.settings, onboardingDone: true, language: payload.settings.language ?? 'system' }, categories: payload.categories, transactions: payload.transactions, recurringRules: payload.recurringRules ?? [], goals: payload.goals, keywords: payload.keywords ?? [] });
     return t.restored(payload.transactions.length);
   };

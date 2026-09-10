@@ -1,0 +1,12 @@
+# OpenShift: same Deployment, a Route instead of an Ingress.
+# The image runs as an arbitrary UID in the root group, which the restricted SCC allows.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - route.yaml
+patches:
+  - path: remove-ingress.yaml
+    target:
+      kind: Ingress
+      name: onlybudget-web

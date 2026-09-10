@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, Switch, View } from 'react-native';
+import { Platform, ScrollView, Switch, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import type { ThemeSetting } from '@/types';
@@ -9,6 +9,7 @@ import { CURRENCIES, currencyInfo } from '@/lib/money';
 import { cancelDailyReminder, scheduleDailyReminder } from '@/lib/reminders';
 import { triggerOfflineModelDownload } from '@/lib/speech';
 import { LANGUAGE_OPTIONS, useLanguageCode, useT } from '@/i18n';
+import { notify } from '@/lib/dialogs';
 import { Sheet } from '@/components/pickers';
 import { Button, Card, ListItem, Row, Screen, SectionTitle, Segmented, Text } from '@/components/ui';
 
@@ -34,7 +35,7 @@ export default function SettingsScreen() {
     if (on) {
       const ok = await scheduleDailyReminder(settings.reminderHour, reminderText);
       if (!ok) {
-        Alert.alert(t.notificationsOff, t.notificationsOffBody);
+        notify(t.notificationsOff, t.notificationsOffBody);
         return;
       }
     } else {
@@ -67,7 +68,7 @@ export default function SettingsScreen() {
         <Text variant="label" style={{ marginBottom: spacing.sm }}>{t.appearance}</Text>
         <Segmented<ThemeSetting> value={settings.theme} onChange={(theme) => updateSettings({ theme })} options={[{ value: 'system', label: t.themeSystem }, { value: 'light', label: t.themeLight }, { value: 'dark', label: t.themeDark }]} />
       </Card>
-      <Card style={{ marginBottom: spacing.sm }}>
+      {Platform.OS !== 'web' ? <Card style={{ marginBottom: spacing.sm }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <View style={{ flex: 1, paddingRight: spacing.md }}>
             <Text variant="body">{t.dailyReminder}</Text>
@@ -82,9 +83,9 @@ export default function SettingsScreen() {
             <Button tone="secondary" small title="+1h" onPress={() => changeHour(1)} />
           </Row>
         ) : null}
-      </Card>
+      </Card> : null}
       {Platform.OS === 'android' ? (
-        <ListItem title={t.offlineVoice} subtitle={t.offlineVoiceSub} onPress={async () => Alert.alert(t.voiceModel, await triggerOfflineModelDownload(languageCode))} />
+        <ListItem title={t.offlineVoice} subtitle={t.offlineVoiceSub} onPress={async () => notify(t.voiceModel, await triggerOfflineModelDownload(languageCode))} />
       ) : null}
       <ListItem title={t.smartParse} subtitle={settings.smartParseEnabled ? t.smartParseOn : t.smartParseOff} onPress={() => router.push('/settings/smart')} />
 

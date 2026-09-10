@@ -129,4 +129,11 @@ fs.writeFileSync(path.join(out, 'android-icon-background.png'), solid(1024, GREE
 fs.writeFileSync(path.join(out, 'android-icon-monochrome.png'), render(1024, { background: GREEN, foreground: WHITE, markScale: 0.66, fgAlphaOnly: true }));
 fs.writeFileSync(path.join(out, 'splash-icon.png'), render(1024, { background: GREEN, foreground: GREEN, markScale: 1.0, transparentBg: true }));
 fs.writeFileSync(path.join(out, 'favicon.png'), render(64, { background: GREEN, foreground: WHITE, markScale: 1.0 }));
+
+// Web / PWA icons
+const web = path.join(__dirname, '..', 'public', 'icons');
+fs.mkdirSync(web, { recursive: true });
+fs.writeFileSync(path.join(web, 'icon-192.png'), render(192, { background: GREEN, foreground: WHITE, markScale: 1.0 }));
+fs.writeFileSync(path.join(web, 'icon-512.png'), render(512, { background: GREEN, foreground: WHITE, markScale: 1.0 }));
+fs.writeFileSync(path.join(web, 'maskable-512.png'), render(512, { background: GREEN, foreground: WHITE, markScale: 0.7 }));
 console.log('Icons written to', out);

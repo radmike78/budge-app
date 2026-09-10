@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
@@ -8,6 +8,7 @@ import { newId } from '@/lib/ids';
 import { parseMoneyInput } from '@/lib/money';
 import { goalProgress } from '@/lib/plain';
 import { useDateFormat, useLocale, useMoney, useT } from '@/i18n';
+import { confirmDialog } from '@/lib/dialogs';
 import { DatePicker } from '@/components/pickers';
 import { Button, Card, Field, ProgressBar, Row, Screen, Text } from '@/components/ui';
 
@@ -54,12 +55,9 @@ export default function GoalEditor() {
     setCurrent(String(existing.currentAmount + a));
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert(t.removeGoalQ(existing.name), t.removeGoalBody, [
-      { text: t.keep, style: 'cancel' },
-      { text: t.remove, style: 'destructive', onPress: async () => { await remove(existing.id); router.back(); } },
-    ]);
+    if (await confirmDialog(t.removeGoalQ(existing.name), t.removeGoalBody, { confirmText: t.remove, cancelText: t.keep, destructive: true })) { await remove(existing.id); router.back(); }
   };
 
   const progress = existing ? goalProgress(existing, currency, today(), locale) : null;
