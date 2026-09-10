@@ -36,7 +36,7 @@ export default function Onboarding() {
         <View style={{ width, padding: spacing.xl, justifyContent: 'center', flex: 1 }}>
           <Text variant="display">No bank linking.{'\n'}No ads.{'\n'}Just tell us what you spent.</Text>
           <Text variant="muted" style={{ marginTop: spacing.xl, fontSize: 17 }}>
-            Only Budget is a manual budget you talk to. Only a budget: nothing else. Speak or type "spent 12 on lunch" and it sorts the rest. Everything stays on your phone.
+            OnlyBudget is a manual budget you talk to. Only a budget: nothing else. Speak or type "spent 12 on lunch" and it sorts the rest. Everything stays on your phone.
           </Text>
           <View style={{ marginTop: spacing.xxl }}><Button title="Next" onPress={() => go(1)} /></View>
         </View>
@@ -67,7 +67,7 @@ export default function Onboarding() {
           <Text variant="body" style={{ marginTop: spacing.sm }}>"got paid 2400"</Text>
           <Text variant="body" style={{ marginTop: spacing.sm }}>"goal: save 500 for a trip by December"</Text>
         </Card>
-        <Text variant="muted" style={{ marginTop: spacing.lg }}>You always see what was understood before it saves, and can fix any field with a tap. If you correct a category, Only Budget remembers the word next time.</Text>
+        <Text variant="muted" style={{ marginTop: spacing.lg }}>You always see what was understood before it saves, and can fix any field with a tap. If you correct a category, OnlyBudget remembers the word next time.</Text>
         <Row style={{ marginTop: spacing.xxl }}>
           <Button tone="ghost" title="Back" onPress={() => go(1)} />
           <Button title="Start" onPress={finish} style={{ flex: 1 }} />

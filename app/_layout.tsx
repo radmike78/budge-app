@@ -65,7 +65,7 @@ export default function RootLayout() {
           <Stack.Screen name="goal/[id]" options={{ title: 'Goal', presentation: 'modal' }} />
           <Stack.Screen name="recurring/index" options={{ title: 'Repeating entries' }} />
           <Stack.Screen name="recurring/[id]" options={{ title: 'Repeating entry', presentation: 'modal' }} />
-          <Stack.Screen name="settings/about" options={{ title: 'About Only Budget' }} />
+          <Stack.Screen name="settings/about" options={{ title: 'About OnlyBudget' }} />
           <Stack.Screen name="settings/backup" options={{ title: 'Backup & export' }} />
           <Stack.Screen name="settings/smart" options={{ title: 'Smart parsing' }} />
           <Stack.Screen name="settings/keywords" options={{ title: 'Learned words' }} />

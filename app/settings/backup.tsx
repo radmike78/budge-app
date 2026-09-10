@@ -79,7 +79,7 @@ export default function Backup() {
   });
 
   const applyRestore = async (payload: unknown) => {
-    if (!isBackupPayload(payload)) throw new Error('This is not an Only Budget backup file.');
+    if (!isBackupPayload(payload)) throw new Error('This is not an OnlyBudget backup file.');
     await new Promise<void>((resolve, reject) => {
       Alert.alert('Replace everything on this phone?', `${payload.transactions.length} entries, ${payload.goals.length} goals and your categories will replace what is here now.`, [
         { text: 'Cancel', style: 'cancel', onPress: () => reject(new Error('Cancelled.')) },

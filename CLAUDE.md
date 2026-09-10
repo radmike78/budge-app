@@ -1,4 +1,4 @@
-# Only Budget — notes for future sessions
+# OnlyBudget — notes for future sessions
 
 Read README.md first. The five product principles there are non-negotiable and every change must respect them: no bank linking, voice and text equal, no dark patterns, local-first with backup, calm not gamified.
 

@@ -55,7 +55,7 @@ export function summaryText(transactions: Transaction[], categories: Category[],
     months.get(k)!.push(t);
   }
   const lines: string[] = [];
-  lines.push('Only Budget summary');
+  lines.push('OnlyBudget summary');
   lines.push(`Generated ${generatedAt.slice(0, 10)}`);
   lines.push('');
   if (months.size === 0) lines.push('No entries yet.');
@@ -84,7 +84,7 @@ export function summaryText(transactions: Transaction[], categories: Category[],
     }
     lines.push('');
   }
-  lines.push('Made with Only Budget. No bank linking, no ads, no tracking.');
+  lines.push('Made with OnlyBudget. No bank linking, no ads, no tracking.');
   return lines.join('\n');
 }
 

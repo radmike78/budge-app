@@ -30,7 +30,7 @@ export default function SettingsScreen() {
     if (on) {
       const ok = await scheduleDailyReminder(settings.reminderHour);
       if (!ok) {
-        Alert.alert('Notifications are off', 'Turn them on for Only Budget in your phone settings if you want a daily nudge.');
+        Alert.alert('Notifications are off', 'Turn them on for OnlyBudget in your phone settings if you want a daily nudge.');
         return;
       }
     } else {
@@ -83,8 +83,8 @@ export default function SettingsScreen() {
       <ListItem title="Smart parsing assist" subtitle={settings.smartParseEnabled ? 'On. Used only when the built-in parser is unsure.' : 'Off. Everything is parsed on your phone.'} onPress={() => router.push('/settings/smart')} />
 
       <SectionTitle>About</SectionTitle>
-      <ListItem title="About Only Budget" subtitle="No bank linking. No ads. No tracking. Ever." onPress={() => router.push('/settings/about')} />
-      <Text variant="small" style={{ marginTop: spacing.md, textAlign: 'center' }}>Only Budget {version}</Text>
+      <ListItem title="About OnlyBudget" subtitle="No bank linking. No ads. No tracking. Ever." onPress={() => router.push('/settings/about')} />
+      <Text variant="small" style={{ marginTop: spacing.md, textAlign: 'center' }}>OnlyBudget {version}</Text>
 
       <Sheet visible={showCurrency} onClose={() => setShowCurrency(false)} title="Currency" tall>
         <ScrollView>
