@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Category, TxType } from '@/types';
 import { radius, spacing, useTheme } from '@/theme';
@@ -11,10 +11,16 @@ import { Button, Chip, Field, Icon, ListItem, Row, Text } from './ui';
 export function Sheet({ visible, onClose, title, children, tall }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode; tall?: boolean }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  // On tablets a sheet spanning the whole width reads badly; keep it a phone-sized column, centred.
+  const wide = width >= 700;
+  // Absolute positioning ignores alignSelf, so the side offsets do the centring.
+  const side = Math.max(0, Math.round((width - 640) / 2));
+  const widthStyle = wide ? { left: side, right: side, marginBottom: spacing.xl, borderBottomLeftRadius: radius.lg + 6, borderBottomRightRadius: radius.lg + 6 } : null;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]} onPress={onClose} accessibilityLabel="Close" />
-      <View style={[styles.sheet, { backgroundColor: colors.bg, paddingBottom: insets.bottom + spacing.lg, maxHeight: tall ? '92%' : '80%' }]}>
+      <View style={[styles.sheet, widthStyle, { backgroundColor: colors.bg, paddingBottom: insets.bottom + spacing.lg, maxHeight: tall ? '92%' : '80%' }]}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
         {title ? <Text variant="heading" style={{ marginBottom: spacing.md }}>{title}</Text> : null}
         {children}

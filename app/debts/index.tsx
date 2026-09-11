@@ -78,7 +78,7 @@ export default function DebtsScreen() {
   return (
     <Screen keyboard>
       <Text variant="muted" style={{ marginTop: spacing.sm }}>{t.debtsIntro}</Text>
-      <Row style={{ marginTop: spacing.md }}>
+      <Row style={{ marginTop: spacing.md, flexWrap: 'wrap' }}>
         <Button title={t.addDebt} onPress={() => openEditor()} />
         <Button tone="secondary" title={t.importStatement} onPress={() => router.push('/import')} />
       </Row>
