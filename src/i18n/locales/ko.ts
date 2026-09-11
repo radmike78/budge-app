@@ -160,6 +160,8 @@ export const ko: LocaleDef = {
     importTooLarge: '파일이 너무 커서 여기서 읽을 수 없어요 (최대 25 MB).',
     importNotPdf: 'PDF가 아닌 것 같아요.',
     importFailed: '이 PDF를 읽지 못했어요.',
+    importBlocked: '이 PDF에는 스크립트, 첨부파일 등 활성 콘텐츠가 들어 있어 OnlyBudget이 열지 않아요. 은행의 일반 명세서 PDF에는 그런 게 없어요.',
+    importEncrypted: '이 PDF는 비밀번호로 보호되어 있어요. 비밀번호를 없앤 뒤 다시 시도하세요.',
     importWarnings: {
       noPeriod: '명세서 기간을 찾지 못해 연도는 추정이에요. 날짜를 확인하세요.',
       noLines: '거래 내역을 찾지 못했어요.',

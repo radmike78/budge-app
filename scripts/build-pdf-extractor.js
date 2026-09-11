@@ -24,25 +24,54 @@ function b64ToBytes(b64) {
   return out;
 }
 window.__ob.addChunk = (chunk) => { window.__ob.chunks.push(chunk); };
+// Same rules as src/lib/pdfInspect.ts: scripts, attachments, media and launch links are refused.
+const MEDIA_SUBTYPES = new Set(['FileAttachment', 'RichMedia', 'Screen', 'Movie', 'Sound', '3D']);
+const SAFE_URL = /^(?:https?:|mailto:|tel:)/i;
+async function inspect(doc, maxPages) {
+  const reasons = new Set();
+  const docJs = await doc.getJSActions().catch(() => null);
+  if (docJs && Object.keys(docJs).length) reasons.add('script');
+  const attachments = await doc.getAttachments().catch(() => null);
+  if (attachments && Object.keys(attachments).length) reasons.add('attachment');
+  const pages = Math.min(doc.numPages, maxPages);
+  for (let p = 1; p <= pages; p += 1) {
+    const page = await doc.getPage(p);
+    const js = await page.getJSActions().catch(() => null);
+    if (js && Object.keys(js).length) reasons.add('script');
+    const annots = await page.getAnnotations().catch(() => []);
+    for (const a of annots) {
+      if (a.subtype && MEDIA_SUBTYPES.has(a.subtype)) reasons.add(a.subtype === 'FileAttachment' ? 'attachment' : 'media');
+      if (a.file || a.richMedia) reasons.add('attachment');
+      const target = a.unsafeUrl != null ? a.unsafeUrl : a.url;
+      if (typeof target === 'string' && target && !SAFE_URL.test(target)) reasons.add('launch');
+    }
+    if (reasons.size >= 3) break;
+  }
+  return [...reasons];
+}
 window.__ob.run = async (maxPages) => {
   try {
     const data = b64ToBytes(window.__ob.chunks.join(''));
     window.__ob.chunks = [];
-    const doc = await pdfjsLib.getDocument({ data, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, stopAtErrors: false }).promise;
+    const doc = await pdfjsLib.getDocument({ data, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, stopAtErrors: false, enableXfa: false }).promise;
     const pages = Math.min(doc.numPages, maxPages || 300);
+    const reasons = await inspect(doc, pages);
+    if (reasons.length) { post({ type: 'blocked', reasons }); await doc.destroy(); return; }
     const items = [];
-    for (let p = 1; p <= pages; p += 1) {
+    outer: for (let p = 1; p <= pages; p += 1) {
       const page = await doc.getPage(p);
       const tc = await page.getTextContent();
       for (const it of tc.items) {
         if (!('str' in it) || !it.str) continue;
-        items.push({ str: it.str, x: Math.round(it.transform[4] * 10) / 10, y: Math.round(it.transform[5] * 10) / 10, w: Math.round(it.width * 10) / 10, page: p });
+        items.push({ str: String(it.str).slice(0, 500), x: Math.round(it.transform[4] * 10) / 10, y: Math.round(it.transform[5] * 10) / 10, w: Math.round(it.width * 10) / 10, page: p });
+        if (items.length >= 200000) break outer;
       }
-      if (items.length > 200000) break;
     }
     post({ type: 'done', numPages: doc.numPages, items });
+    await doc.destroy();
   } catch (e) {
-    post({ type: 'error', message: String(e && e.message ? e.message : e) });
+    const name = e && e.name ? String(e.name) : '';
+    post({ type: 'error', code: name === 'PasswordException' ? 'password' : 'parse', message: String(e && e.message ? e.message : e).slice(0, 200) });
   }
 };
 post({ type: 'ready' });

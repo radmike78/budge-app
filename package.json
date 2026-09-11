@@ -14,7 +14,8 @@
     "build:web": "node scripts/copy-pdf-worker.js && expo export --platform web --output-dir dist && node scripts/postbuild-web.js dist",
     "check:web-security": "node scripts/web-security-check.mjs dist",
     "audit": "npm audit --omit=dev",
-    "postinstall": "node scripts/build-pdf-extractor.js"
+    "postinstall": "node scripts/build-pdf-extractor.js",
+    "check:pdf-security": "node --experimental-strip-types --no-warnings scripts/pdf-security-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

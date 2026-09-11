@@ -3,7 +3,8 @@ import { View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { Asset } from 'expo-asset';
 import { File } from 'expo-file-system';
-import { bytesToBase64, MAX_PDF_PAGES } from '@/lib/pdfBytes';
+import { bytesToBase64, MAX_PDF_PAGES, PdfBlockedError, PdfEncryptedError } from '@/lib/pdfBytes';
+import { MAX_ITEM_CHARS, MAX_ITEMS } from '@/lib/pdfInspect';
 import type { TextItem } from '@/statements';
 
 export interface PdfExtractorHandle {
@@ -60,7 +61,7 @@ export const PdfExtractor = forwardRef<PdfExtractorHandle, object>(function PdfE
   }), [html]);
 
   const onMessage = (e: WebViewMessageEvent) => {
-    let msg: { type: string; items?: TextItem[]; numPages?: number; message?: string };
+    let msg: { type: string; items?: TextItem[]; numPages?: number; message?: string; code?: string; reasons?: string[] };
     try {
       msg = JSON.parse(e.nativeEvent.data);
     } catch {
@@ -74,8 +75,12 @@ export const PdfExtractor = forwardRef<PdfExtractorHandle, object>(function PdfE
     const p = pending.current;
     pending.current = null;
     if (!p) return;
-    if (msg.type === 'done' && Array.isArray(msg.items)) p.resolve({ items: msg.items.filter((it) => typeof it.str === 'string' && Number.isFinite(it.x) && Number.isFinite(it.y)), numPages: msg.numPages ?? 0 });
-    else p.reject(new Error(msg.message ?? 'extract failed'));
+    if (msg.type === 'done' && Array.isArray(msg.items)) {
+      const items = msg.items.slice(0, MAX_ITEMS).filter((it) => typeof it.str === 'string' && Number.isFinite(it.x) && Number.isFinite(it.y)).map((it) => ({ ...it, str: it.str.slice(0, MAX_ITEM_CHARS) }));
+      p.resolve({ items, numPages: msg.numPages ?? 0 });
+    } else if (msg.type === 'blocked') p.reject(new PdfBlockedError(Array.isArray(msg.reasons) ? msg.reasons.map(String) : []));
+    else if (msg.code === 'password') p.reject(new PdfEncryptedError());
+    else p.reject(new Error('extract failed'));
   };
 
   if (!html) return null;

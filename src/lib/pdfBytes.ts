@@ -5,6 +5,7 @@
 import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
+import { scanPdfBytes } from './pdfScan';
 
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_PDF_PAGES = 300;
@@ -13,6 +14,21 @@ export class PdfTooLargeError extends Error {
   constructor() {
     super('PDF too large');
     this.name = 'PdfTooLargeError';
+  }
+}
+
+/** The file carries scripts, launch actions, attachments, forms or media, and is refused. */
+export class PdfBlockedError extends Error {
+  constructor(public readonly reasons: string[]) {
+    super(`PDF blocked: ${reasons.join(', ')}`);
+    this.name = 'PdfBlockedError';
+  }
+}
+
+export class PdfEncryptedError extends Error {
+  constructor() {
+    super('PDF is password-protected');
+    this.name = 'PdfEncryptedError';
   }
 }
 
@@ -45,6 +61,9 @@ export async function pickPdf(): Promise<PickedPdf | null> {
   if (buffer.byteLength > MAX_PDF_BYTES) throw new PdfTooLargeError();
   const bytes = new Uint8Array(buffer);
   if (!looksLikePdf(bytes)) throw new Error('Not a PDF');
+  const scan = scanPdfBytes(bytes);
+  if (scan.blocked) { bytes.fill(0); throw new PdfBlockedError(scan.markers); }
+  if (scan.encrypted) { bytes.fill(0); throw new PdfEncryptedError(); }
   return { name: asset.name, bytes };
 }
 

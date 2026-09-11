@@ -1,0 +1,55 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Length 72 >>
+stream
+BT /F1 10 Tf 50 750 Td (Statement Period: 01/01/2026 - 01/31/2026) Tj ET
+endstream
+endobj
+3 0 obj
+<< /S /JavaScript /JS (app.alert\(1\)) >>
+endobj
+4 0 obj
+<< /Type /EmbeddedFile /Length 5 >>
+stream
+hello
+endstream
+endobj
+5 0 obj
+<< /Type /Filespec /F (evil.exe) /EF << /F 4 0 R >> >>
+endobj
+6 0 obj
+<< /Type /Annot /Subtype /Link /Rect [0 0 100 100] /A << /S /Launch /F (calc.exe) >> >>
+endobj
+7 0 obj
+<< /Type /Page /Parent 8 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R >> >> /Contents 2 0 R /Annots [6 0 R] >>
+endobj
+8 0 obj
+<< /Type /Pages /Kids [7 0 R] /Count 1 >>
+endobj
+9 0 obj
+<< /EmbeddedFiles << /Names [(evil.exe) 5 0 R] >> >>
+endobj
+10 0 obj
+<< /Type /Catalog /Pages 8 0 R /OpenAction 3 0 R /Names 9 0 R >>
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000201 00000 n 
+0000000258 00000 n 
+0000000332 00000 n 
+0000000402 00000 n 
+0000000505 00000 n 
+0000000647 00000 n 
+0000000704 00000 n 
+0000000772 00000 n 
+trailer
+<< /Size 11 /Root 10 0 R >>
+startxref
+853
+%%EOF
