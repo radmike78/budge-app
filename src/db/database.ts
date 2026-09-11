@@ -104,6 +104,30 @@ const MIGRATIONS: string[] = [
   );`,
   // v4: optional app lock (biometrics / device passcode on open).
   `ALTER TABLE settings ADD COLUMN app_lock INTEGER DEFAULT 0;`,
+  // v5: statement import (fingerprints to skip duplicates, import history) and debts for the pay-off plan.
+  `ALTER TABLE transactions ADD COLUMN fingerprint TEXT;
+  ALTER TABLE transactions ADD COLUMN import_id TEXT;
+  CREATE INDEX IF NOT EXISTS idx_transactions_fingerprint ON transactions(fingerprint);
+  CREATE TABLE IF NOT EXISTS imports (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    period_start TEXT,
+    period_end TEXT,
+    count INTEGER NOT NULL DEFAULT 0,
+    imported_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS debts (
+    id TEXT PRIMARY KEY,
+    creditor TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'other',
+    balance REAL NOT NULL DEFAULT 0,
+    monthly_payment REAL,
+    credit_limit REAL,
+    apr REAL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    updated_at TEXT NOT NULL
+  );`,
 ];
 
 async function migrate(db: DB): Promise<void> {
@@ -133,7 +157,7 @@ async function seedDefaultCategories(db: DB): Promise<void> {
 /** Test/reset helper: wipes every table and re-seeds defaults. */
 export async function resetDatabase(db: DB): Promise<void> {
   await db.withTransactionAsync(async () => {
-    await db.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories; DELETE FROM reminders;');
+    await db.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories; DELETE FROM reminders; DELETE FROM imports; DELETE FROM debts;');
     await db.execAsync("UPDATE settings SET currency='USD', theme='system', last_backup_at=NULL, starting_balance=NULL, reminder_enabled=0, reminder_hour=20, smart_parse_enabled=0, language='system' WHERE id=1");
   });
   await seedDefaultCategories(db);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { Category, Goal, KeywordMapping, MonthStats, RecurringRule, Reminder, Settings, Transaction } from '@/types';
+import type { Category, Debt, Goal, ImportRecord, KeywordMapping, MonthStats, RecurringRule, Reminder, Settings, Transaction } from '@/types';
+import type { StatementLine, Tradeline } from '@/statements';
 import { getDb } from '@/db/database';
 import * as repo from '@/db/repositories';
 import { currentMonthKey, nowIso, today } from '@/lib/dates';
@@ -15,6 +16,10 @@ interface AppState {
   categories: Category[];
   goals: Goal[];
   reminders: Reminder[];
+  debts: Debt[];
+  imports: ImportRecord[];
+  /** Fingerprints of every imported statement line, to flag duplicates before import. */
+  fingerprints: Set<string>;
   /** Last known notification permission; null until checked. */
   notifications: PermissionState | null;
   rules: RecurringRule[];
@@ -46,6 +51,13 @@ interface AppState {
   /** Re-schedules what needs it (monthly reminders, ones saved while notifications were off) and drops past one-offs. */
   rearmReminders: () => Promise<void>;
 
+  /** Saves the chosen lines from a statement as entries. Returns how many were added. */
+  importStatement: (lines: StatementLine[], meta: { kind: 'bank' | 'card' | 'credit_report'; fileName: string; periodStart: string | null; periodEnd: string | null }) => Promise<number>;
+  saveDebt: (d: Debt) => Promise<void>;
+  removeDebt: (id: string) => Promise<void>;
+  /** Adds or refreshes debts from a credit report or card statement (matched by creditor name). */
+  mergeTradelines: (lines: Tradeline[]) => Promise<number>;
+
   saveRule: (r: RecurringRule) => Promise<void>;
   removeRule: (id: string) => Promise<void>;
   runRecurringCatchUp: () => Promise<number>;
@@ -62,6 +74,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   settings: null,
   categories: [],
   reminders: [],
+  debts: [],
+  imports: [],
+  fingerprints: new Set<string>(),
   notifications: null,
   goals: [],
   rules: [],
@@ -83,7 +98,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   refresh: async () => {
     const db = await getDb();
     const month = get().month;
-    const [settings, categories, goals, rules, keywords, recent, stats, lifetime, reminders] = await Promise.all([
+    const [settings, categories, goals, rules, keywords, recent, stats, lifetime, reminders, debts, imports, fingerprints] = await Promise.all([
       repo.getSettings(db),
       repo.allCategories(db),
       repo.allGoals(db),
@@ -93,10 +108,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       repo.monthStats(db, month),
       repo.lifetimeTotals(db),
       repo.allReminders(db),
+      repo.allDebts(db),
+      repo.allImports(db),
+      repo.allFingerprints(db),
     ]);
     const keywordMap: Record<string, string> = {};
     for (const k of keywords) keywordMap[k.word] = k.categoryId;
-    set({ settings, categories, goals, rules, keywords, keywordMap, recent, stats, lifetime, reminders });
+    set({ settings, categories, goals, rules, keywords, keywordMap, recent, stats, lifetime, reminders, debts, imports, fingerprints });
   },
 
   setMonth: async (month) => {
@@ -213,6 +231,65 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (id !== rem.notificationId) { await repo.upsertReminder(db, { ...rem, notificationId: id }); changed = true; }
     }
     if (changed) await get().refresh();
+  },
+
+  importStatement: async (lines, meta) => {
+    const db = await getDb();
+    const importId = newId();
+    const known = get().fingerprints;
+    let count = 0;
+    await db.withTransactionAsync(async () => {
+      for (const l of lines) {
+        if (!l.include || known.has(l.fingerprint)) continue;
+        const type = l.direction === 'in' ? 'income' : 'expense';
+        await repo.insertTransaction(db, {
+          id: newId(), amount: l.amount, type, categoryId: l.categoryId, note: l.description || null, rawInput: null, occurredAt: l.date,
+          createdAt: nowIso(), isRecurringInstance: false, recurringRuleId: null, fingerprint: l.fingerprint, importId,
+        });
+        known.add(l.fingerprint);
+        count += 1;
+      }
+      await repo.insertImport(db, { id: importId, kind: meta.kind, fileName: meta.fileName.slice(0, 120), periodStart: meta.periodStart, periodEnd: meta.periodEnd, count, importedAt: nowIso() });
+    });
+    await get().refresh();
+    return count;
+  },
+
+  saveDebt: async (d) => {
+    const db = await getDb();
+    await repo.upsertDebt(db, { ...d, updatedAt: nowIso() });
+    await get().refresh();
+  },
+
+  removeDebt: async (id) => {
+    const db = await getDb();
+    await repo.deleteDebt(db, id);
+    await get().refresh();
+  },
+
+  mergeTradelines: async (lines) => {
+    const db = await getDb();
+    const existing = get().debts;
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    let n = 0;
+    for (const t of lines) {
+      if (t.balance == null && t.monthlyPayment == null) continue;
+      const match = existing.find((d) => norm(d.creditor) === norm(t.creditor) || (t.source === 'card_statement' && d.source === 'card_statement' && norm(d.creditor).slice(-4) === norm(t.creditor).slice(-4)));
+      await repo.upsertDebt(db, {
+        id: match?.id ?? newId(),
+        creditor: t.creditor.slice(0, 80),
+        type: t.type,
+        balance: t.balance ?? match?.balance ?? 0,
+        monthlyPayment: t.monthlyPayment ?? match?.monthlyPayment ?? null,
+        creditLimit: t.creditLimit ?? match?.creditLimit ?? null,
+        apr: t.apr ?? match?.apr ?? null,
+        source: t.source,
+        updatedAt: nowIso(),
+      });
+      n += 1;
+    }
+    await get().refresh();
+    return n;
   },
 
   saveRule: async (r) => {

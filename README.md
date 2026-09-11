@@ -115,13 +115,21 @@ Every parse produces a confidence and plain hints ("Not sure about the category.
 
 **Learning**: when the user changes the category on the confirmation card, the meaningful words of the phrase are stored in `keyword_mappings` and take priority next time. They can be reviewed and removed under Settings → Learned words.
 
+## Importing statements and credit reports
+
+Settings → Import a statement takes a PDF from a bank, a card issuer or a credit bureau and reads it on the device (pdf.js in a sandboxed WebView on the phone, in the page's own worker on the web). Nothing is uploaded. The pure parsing lives in `src/statements/`:
+
+- **Bank and card statements.** Each transaction line becomes an entry with the right sign: from the header row's columns when the PDF has them (Deposits / Withdrawals / Balance), else from section headings, running-balance changes, minus signs, parentheses and CR/DR markers. Years are inferred from the statement period, so the December lines of a January statement land in December. Every line is categorised with the app's own vocabulary plus a statement-merchant dictionary (payroll, Walmart, Shell, Netflix, PG&E, CVS, card autopay …), and the user's learned words win. Transfers between the user's own accounts and card payments seen from the card side are unticked by default; refunds become income; interest and fees go to Debt. Lines already in the history are recognised by fingerprint and skipped. The review screen groups lines by month with money in / money out per month, lets the user change any category or drop any line, and only then saves. Changing a category teaches the merchant for next time. A card statement also records the card (balance, minimum payment, limit, APR) as a debt.
+- **Credit reports.** Each account becomes a debt with creditor, type, balance, monthly payment, limit and rate. Settings → Debts & pay-off plan lists them and builds a plan for consumer debt only (cards, personal and student loans, lines of credit; mortgages and car loans are shown but left out): highest-rate-first when rates are known and differ, otherwise smallest-balance-first, with months to pay off and total interest for the extra amount the user can put in. Any debt can become a pay-down goal.
+- **Limits.** Scanned PDFs (pictures of pages) have no text and are reported as such. Files are capped at 25 MB and 300 pages.
+
 ## Security
 
 No server, no account, no bank link, no analytics. Every trust boundary (typed or spoken entries, imported backups, Smart Assist replies, the web build's browser sandbox) is validated and covered by attack-style tests in `__tests__/security.test.ts`, following the OWASP Mobile Top 10 and MASVS. Optional app lock with Face ID / fingerprint / passcode, Android cloud backup off, HTTPS only, and a strict Content-Security-Policy on the web build verified in headless Chromium (`npm run check:web-security`). Details: [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Data
 
-SQLite schema in `src/db/database.ts` (versioned with `PRAGMA user_version`; v2 adds `settings.language`, v3 adds `goals.kind` and `reminders`). Tables: `transactions`, `categories` (with a `kind` column and optional `monthly_limit`), `recurring_rules`, `goals` (`kind` is `saving` or `debt`), `reminders` (text, due time, repeat, scheduled notification id), `settings` (single row), `keyword_mappings`.
+SQLite schema in `src/db/database.ts` (versioned with `PRAGMA user_version`; v2 adds `settings.language`, v3 adds `goals.kind` and `reminders`, v4 `settings.app_lock`, v5 `transactions.fingerprint`/`import_id`, `imports` and `debts`). Tables: `transactions`, `categories` (with a `kind` column and optional `monthly_limit`), `recurring_rules`, `goals` (`kind` is `saving` or `debt`), `reminders` (text, due time, repeat, scheduled notification id), `settings` (single row), `keyword_mappings`.
 
 Recurring rules are caught up on every launch and whenever a rule is saved: every due occurrence up to today is inserted as a transaction flagged `is_recurring_instance`, and `next_occurrence` moves forward. Monthly rules keep their day-of-month anchor (the 31st becomes the 28th in February and returns to the 31st in March).
 

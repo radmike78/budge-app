@@ -42,3 +42,7 @@ yarn-error.*
 
 # Expo router generated types
 .expo/types/
+
+# generated from node_modules/pdfjs-dist at install/build time
+public/pdf.worker.min.mjs
+assets/pdf/extractor.html

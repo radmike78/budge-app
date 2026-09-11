@@ -15,6 +15,36 @@ export interface Transaction {
   createdAt: string;
   isRecurringInstance: boolean;
   recurringRuleId: string | null;
+  /** Set on lines imported from a statement: used to skip the same line twice. */
+  fingerprint?: string | null;
+  importId?: string | null;
+}
+
+export type DebtType = 'credit_card' | 'personal_loan' | 'student_loan' | 'auto_loan' | 'mortgage' | 'line_of_credit' | 'other';
+
+/** A debt the user owes, from a credit report, a card statement, or typed in. */
+export interface Debt {
+  id: string;
+  creditor: string;
+  type: DebtType;
+  balance: number;
+  monthlyPayment: number | null;
+  creditLimit: number | null;
+  /** Percent per year */
+  apr: number | null;
+  source: 'credit_report' | 'card_statement' | 'manual';
+  updatedAt: string;
+}
+
+/** A statement the user imported, for the history list. */
+export interface ImportRecord {
+  id: string;
+  kind: 'bank' | 'card' | 'credit_report';
+  fileName: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  count: number;
+  importedAt: string;
 }
 
 export interface Category {

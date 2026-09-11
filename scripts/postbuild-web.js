@@ -9,6 +9,11 @@ const fs = require('fs');
 const path = require('path');
 
 const dist = path.resolve(process.argv[2] || 'dist');
+
+// pdf.js runs its parser in a Web Worker loaded from our own origin (the CSP allows no other).
+const workerSrc = path.join(path.dirname(require.resolve('pdfjs-dist/package.json')), 'build/pdf.worker.min.mjs');
+fs.copyFileSync(workerSrc, path.join(dist, 'pdf.worker.min.mjs'));
+console.log('Copied pdf.worker.min.mjs into', dist);
 const file = path.join(dist, 'index.html');
 let html = fs.readFileSync(file, 'utf8');
 
