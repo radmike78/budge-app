@@ -170,6 +170,8 @@ export const en = {
     importTooLarge: 'That file is too big to read here (limit 25 MB).',
     importNotPdf: 'That does not look like a PDF.',
     importFailed: 'Could not read that PDF.',
+    importBlocked: 'This PDF contains scripts, attachments or other active content, so OnlyBudget will not open it. A plain statement PDF from your bank has none of that.',
+    importEncrypted: 'This PDF is password-protected. Remove the password first, then try again.',
     importWarnings: {
       noPeriod: 'No statement period found, so years are a best guess. Check the dates.',
       noLines: 'No transaction lines were found.',

@@ -160,6 +160,8 @@ export const ja: LocaleDef = {
     importTooLarge: 'ファイルが大きすぎます（上限 25 MB）。',
     importNotPdf: 'PDF ではないようです。',
     importFailed: 'この PDF を読み取れませんでした。',
+    importBlocked: 'この PDF にはスクリプト、添付ファイル、その他のアクティブな内容が含まれているため、OnlyBudget では開きません。銀行の通常の明細 PDF にはそうしたものはありません。',
+    importEncrypted: 'この PDF はパスワードで保護されています。パスワードを外してからもう一度お試しください。',
     importWarnings: {
       noPeriod: '明細期間が見つからないため、年は推定です。日付を確認してください。',
       noLines: '取引の行が見つかりませんでした。',

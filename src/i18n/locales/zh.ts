@@ -160,6 +160,8 @@ export const zh: LocaleDef = {
     importTooLarge: '文件太大，这里无法读取（上限 25 MB）。',
     importNotPdf: '这看起来不是 PDF。',
     importFailed: '无法读取这个 PDF。',
+    importBlocked: '这个 PDF 含有脚本、附件或其他活动内容，OnlyBudget 不会打开它。银行的普通账单 PDF 不会有这些。',
+    importEncrypted: '这个 PDF 有密码保护。请先去掉密码再试。',
     importWarnings: {
       noPeriod: '没有找到账单周期，年份是推测的。请检查日期。',
       noLines: '没有找到交易记录。',

@@ -160,6 +160,8 @@ export const fr: LocaleDef = {
     importTooLarge: 'Ce fichier est trop volumineux pour être lu ici (limite 25 Mo).',
     importNotPdf: 'Cela ne ressemble pas à un PDF.',
     importFailed: 'Impossible de lire ce PDF.',
+    importBlocked: 'Ce PDF contient des scripts, des pièces jointes ou un autre contenu actif, OnlyBudget ne l’ouvrira donc pas. Un relevé ordinaire de votre banque n’en contient pas.',
+    importEncrypted: 'Ce PDF est protégé par un mot de passe. Retirez-le, puis réessayez.',
     importWarnings: {
       noPeriod: 'Aucune période de relevé trouvée, les années sont donc une estimation. Vérifiez les dates.',
       noLines: 'Aucune opération trouvée.',

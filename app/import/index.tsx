@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { radius, spacing, useTheme } from '@/theme';
 import { friendlyDate, longDate, monthLabel, today } from '@/lib/dates';
 import { notify } from '@/lib/dialogs';
-import { pickPdf, PdfTooLargeError } from '@/lib/pdfBytes';
+import { pickPdf, PdfBlockedError, PdfEncryptedError, PdfTooLargeError } from '@/lib/pdfBytes';
 import { categoryName, useDateFormat, useLanguageCode, useLocale, useMoney, useT } from '@/i18n';
 import { parseCreditReport, parseStatement, rowsFromItems, type ParsedStatement, type StatementLine, type Tradeline } from '@/statements';
 import { PdfExtractor, type PdfExtractorHandle } from '@/components/PdfExtractor';
@@ -71,7 +71,9 @@ export default function ImportScreen() {
       setStage('review');
     } catch (e) {
       setStage('idle');
-      if (e instanceof PdfTooLargeError) notify(t.importStatement, t.importTooLarge);
+      if (e instanceof PdfBlockedError) notify(t.importStatement, t.importBlocked);
+      else if (e instanceof PdfEncryptedError) notify(t.importStatement, t.importEncrypted);
+      else if (e instanceof PdfTooLargeError) notify(t.importStatement, t.importTooLarge);
       else if (e instanceof Error && e.message === 'Not a PDF') notify(t.importStatement, t.importNotPdf);
       else notify(t.importStatement, t.importFailed);
     }

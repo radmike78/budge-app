@@ -160,6 +160,8 @@ export const it: LocaleDef = {
     importTooLarge: 'Il file è troppo grande per essere letto qui (limite 25 MB).',
     importNotPdf: 'Non sembra un PDF.',
     importFailed: 'Impossibile leggere questo PDF.',
+    importBlocked: 'Questo PDF contiene script, allegati o altro contenuto attivo, quindi OnlyBudget non lo aprirà. Un normale estratto conto della tua banca non ne ha.',
+    importEncrypted: 'Questo PDF è protetto da password. Rimuovila e riprova.',
     importWarnings: {
       noPeriod: 'Periodo dell’estratto non trovato, quindi gli anni sono una stima. Controlla le date.',
       noLines: 'Nessun movimento trovato.',

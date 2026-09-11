@@ -22,6 +22,8 @@ jobs:
         env:
           CI: 1
           EXPO_NO_TELEMETRY: 1
+      - name: PDF active-content check (real pdf.js on fixtures)
+        run: npm run check:pdf-security
       - name: Dependency audit (production dependencies)
         run: npm audit --omit=dev --audit-level=high
       - name: Web build under Content-Security-Policy (headless Chromium)
