@@ -5,6 +5,9 @@
  * directory given as the second argument.
  *
  *   npm run build:web && node scripts/ui-screenshots.mjs dist out/shots
+ *
+ * APP_NAME (default OnlyBudget) is the text waited for on first load, and
+ * PROFILES (comma-separated, e.g. iphone-15,ipad-landscape) limits the devices.
  */
 import fs from 'node:fs';
 import http from 'node:http';
@@ -36,7 +39,8 @@ try { playwright = createRequire(import.meta.url)('playwright'); } catch {
 }
 const { devices } = playwright;
 
-const PROFILES = [
+const APP_NAME = process.env.APP_NAME || 'OnlyBudget';
+const ALL_PROFILES = [
   { name: 'iphone-15', ...devices['iPhone 15'] },
   { name: 'pixel-7', ...devices['Pixel 7'] },
   { name: 'iphone-se', ...devices['iPhone SE'] },
@@ -44,6 +48,8 @@ const PROFILES = [
   { name: 'ipad-landscape', ...devices['iPad (gen 7) landscape'] },
   { name: 'galaxy-tab', viewport: { width: 800, height: 1280 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: devices['Galaxy Tab S4'].userAgent },
 ];
+const only = (process.env.PROFILES || '').split(',').map((s) => s.trim()).filter(Boolean);
+const PROFILES = only.length ? ALL_PROFILES.filter((p) => only.includes(p.name)) : ALL_PROFILES;
 
 const ENTRIES = [
   'got paid 2400',
@@ -80,7 +86,7 @@ for (const profile of PROFILES) {
 
   try {
     await goto('/');
-    await page.getByText('OnlyBudget').first().waitFor({ timeout: 30000 });
+    await page.getByText(APP_NAME).first().waitFor({ timeout: 30000 });
     await shot('01-onboarding');
     await clickText('Next');
     await shot('02-onboarding-2');
