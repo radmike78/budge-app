@@ -92,6 +92,16 @@ const MIGRATIONS: string[] = [
   `,
   // v2: app language ('system' follows the phone).
   `ALTER TABLE settings ADD COLUMN language TEXT DEFAULT 'system';`,
+  // v3: goals can be "save up" or "pay down"; spoken reminders.
+  `ALTER TABLE goals ADD COLUMN kind TEXT NOT NULL DEFAULT 'saving';
+  CREATE TABLE IF NOT EXISTS reminders (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    due_at TEXT NOT NULL,
+    repeat TEXT NOT NULL DEFAULT 'none',
+    notification_id TEXT,
+    created_at TEXT NOT NULL
+  );`,
 ];
 
 async function migrate(db: DB): Promise<void> {
@@ -121,7 +131,7 @@ async function seedDefaultCategories(db: DB): Promise<void> {
 /** Test/reset helper: wipes every table and re-seeds defaults. */
 export async function resetDatabase(db: DB): Promise<void> {
   await db.withExclusiveTransactionAsync(async (txn) => {
-    await txn.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories;');
+    await txn.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories; DELETE FROM reminders;');
     await txn.execAsync("UPDATE settings SET currency='USD', theme='system', last_backup_at=NULL, starting_balance=NULL, reminder_enabled=0, reminder_hour=20, smart_parse_enabled=0, language='system' WHERE id=1");
   });
   await seedDefaultCategories(db);

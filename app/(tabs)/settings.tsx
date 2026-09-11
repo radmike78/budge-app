@@ -58,6 +58,7 @@ export default function SettingsScreen() {
       <SectionTitle>{t.yourData}</SectionTitle>
       <ListItem title={t.backupExport} subtitle={t.backupExportSub} onPress={() => router.push('/settings/backup')} />
       <ListItem title={t.repeatingEntries} subtitle={t.repeatingEntriesSub} onPress={() => router.push('/recurring')} />
+      <ListItem title={t.reminders} subtitle={t.remindersSub} onPress={() => router.push('/settings/reminders')} />
       <ListItem title={t.categories} subtitle={t.categoriesSub} onPress={() => router.push('/budget')} />
       <ListItem title={t.learnedWords} subtitle={t.learnedWordsSub(keywords.length)} onPress={() => router.push('/settings/keywords')} />
 

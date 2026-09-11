@@ -103,7 +103,9 @@ npm run icons     # regenerate assets/*.png from scripts/generate-icons.js
 - Amount: prefers a number with a currency marker, else the first bare number; ordinals, times and percentages are skipped.
 - Type: income verbs (`got paid`, `earned`, `refund`…) vs expense verbs (`spent`, `paid`, `bought`…). If neither, the category decides; if nothing, expense with a hint.
 - Category: learned words (from user corrections) → custom category names → the pack's keyword dictionary, longest phrase first (`gas bill` beats `gas`; `电影` beats `电`).
-- Goals: `goal: …`, `save X for Y by Z`, `I want to save…`. Contributions to an existing goal: `add 100 to the trip goal`, `put 50 toward japan`.
+- Goals: `goal: …`, `save X for Y by Z`, `I want to save…`, `Set a goal of $10,000 for a trip to Hawaii in Oct 2027`. Contributions to an existing goal: `add 100 to the trip goal`, `put 50 toward japan`.
+- Pay-down goals: `Make a plan to pay down $5,000 of debt within 12 months`, `pay off my credit card in 6 months`. A goal is either *save up* or *pay down*; the card shows the plan ("about $417 a month ($97 a week) until September 2027") before you save it, and payments toward a debt goal are logged under Debt.
+- Reminders: `remind me to pay rent on the 1st at 9am`, `remind me to log receipts every evening at 8`, `recuérdame mañana a las 10 llamar al banco`. Time, day and repeat (once, daily, weekly, monthly) are pulled out; the rest is the reminder text. Reminders are local notifications, so the first one asks for permission and the card explains what to allow if it was refused. They live under Settings → Reminders.
 - Several expenses at once: `I spent $67.99 at Macy's and $121.53 at Fleming's Steakhouse` or `Lunch was 12. Then 40 on gas and 4 for coffee.` are split into one entry each (on `and`, commas, `then`, sentence breaks, and their equivalents in every pack). A verb or date said once carries across the list. The confirmation card shows one editable row per entry and saves them together.
 - Unknown places still work: `Spent $32 at Joe's` becomes a $32 expense with the note "Joe's" in *Other*, with a hint to tap the category and change it. The correction is learned for next time.
 
@@ -115,7 +117,7 @@ Every parse produces a confidence and plain hints ("Not sure about the category.
 
 ## Data
 
-SQLite schema in `src/db/database.ts` (versioned with `PRAGMA user_version`; v2 adds `settings.language`). Tables: `transactions`, `categories` (with a `kind` column and optional `monthly_limit`), `recurring_rules`, `goals`, `settings` (single row), `keyword_mappings`.
+SQLite schema in `src/db/database.ts` (versioned with `PRAGMA user_version`; v2 adds `settings.language`, v3 adds `goals.kind` and `reminders`). Tables: `transactions`, `categories` (with a `kind` column and optional `monthly_limit`), `recurring_rules`, `goals` (`kind` is `saving` or `debt`), `reminders` (text, due time, repeat, scheduled notification id), `settings` (single row), `keyword_mappings`.
 
 Recurring rules are caught up on every launch and whenever a rule is saved: every due occurrence up to today is inserted as a transaction flagged `is_recurring_instance`, and `next_occurrence` moves forward. Monthly rules keep their day-of-month anchor (the 31st becomes the 28th in February and returns to the 31st in March).
 

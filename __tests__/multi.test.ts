@@ -58,7 +58,7 @@ describe('parseEntries', () => {
     expect(r[0].kind).toBe('goal');
   });
   it('does not split contributions', () => {
-    const goals: Goal[] = [{ id: 'g1', name: 'Trip', targetAmount: 500, currentAmount: 0, targetDate: null, createdAt: '2026-08-01T00:00:00Z', completed: false }];
+    const goals: Goal[] = [{ id: 'g1', name: 'Trip', kind: 'saving', targetAmount: 500, currentAmount: 0, targetDate: null, createdAt: '2026-08-01T00:00:00Z', completed: false }];
     const r = parseEntries('add 100 to the trip goal and 50 more', ctx('en', { goals }));
     expect(r).toHaveLength(1);
     expect(r[0].kind).toBe('contribution');

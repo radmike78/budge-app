@@ -1,6 +1,7 @@
 import { ISO_RULE, cjkByMonthRule, cjkMonthDayRule, dayOfMonthRule, relativeFutureRules, relativePastRules, weekdayRule, wordRule } from '../dateRules';
 import { cjkNumeralsToDigits, expandK } from '../numbers';
 import type { LanguagePack } from '../types';
+import { cjkClockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 import { fromDateString } from '@/lib/dates';
 
 const WEEKDAYS = {
@@ -76,9 +77,11 @@ export const ja: LanguagePack = {
     cjkByMonthRule('月', ['末までに', '末まで', '末', 'までに', 'まで', '中に', '中', '前に', '前', '頃までに', '頃まで']),
     wordRule(['再来年'], (_m, t) => `${fromDateString(t).getFullYear() + 2}-01-01`, false),
   ],
-  goalLead: /^(?:目標|貯金目標|新しい目標|ゴール|貯金の目標)\s*:?\s*/,
+  goalLead: /^(?:目標|貯金目標|新しい目標|ゴール|貯金の目標|返済目標|計画|返済計画|計画を立てて|計画を立てる)\s*:?\s*/,
   goalIntent: /(?:貯めたい|貯金したい|ためたい|貯めよう|貯金しよう|貯めたく|貯金したく|貯める目標|貯金する予定|貯めるつもり|貯金するつもり|貯めなきゃ|貯金しなきゃ|貯めないと)/,
-  goalPastVerbs: /(?:貯めた|貯金した|入れた|入金した|移した|追加した|足した|振り込んだ|積み立てた|回した|入れました|貯金しました)/,
+  goalPastVerbs: /(?:貯めた|貯金した|入れた|入金した|移した|追加した|足した|振り込んだ|積み立てた|回した|入れました|貯金しました|返した|返済した|払った)/,
+  debtIntent: /(?:返済したいです|返済したい|返済する|返済し|完済したいです|完済したい|完済する|完済し|返したいです|返したい|返す|返そう|払い終え|払い切|なくしたい|減らしたい)/,
+  debtWords: /(?:借金|ローン|クレジットカード|クレカ|リボ|負債|借り|奨学金|返済|残高|カードの支払い)/,
   contributionVerbs: /(?:貯めた|貯金した|入れた|入金した|移した|追加した|追加|足した|振り込んだ|積み立てた|回した|入れました|貯金しました|に貯金|貯金に|入金)/,
   contributionPreps: 'に貯金|に入れた|に入れました|に入金|に移した|に追加|に足した|に振り込んだ|に積み立て|に回した|へ|に|の貯金|貯金',
   forWords: 'のために|のため|用に|向けに|向け|のお金|の資金|資金',
@@ -88,5 +91,31 @@ export const ja: LanguagePack = {
   trailingFiller: /(?:に|で|を|は|が|の|と|へ|から|まで|ぐらい|くらい|ほど|だいたい|約|ました|した|です|だ|ね|よ|かな|今日|昨日|分|ほか|とか|など|だった|でした)+$/u,
   noteStrip: [/(?:で|に|を|へ|の)$/u],
   listSeparators: ['、', ',', '，', 'と', 'それと', 'あと', 'それから', 'と、', 'に', 'も'],
+  reminder: {
+    lead: /(?:(?:リマインド|リマインダー|通知|お知らせ|アラーム)(?:を)?(?:して|セット|設定|お願い|ください|入れて|追加|頼む)(?:ください|して|おいて|ほしい|欲しい|ね|よ)?|思い出させて|教えて|知らせて|忘れないように(?:して)?|忘れないで|リマインド|リマインダー)(?:ください|ほしい|欲しい|ね|よ)?/u,
+    time: [
+      cjkClockRule({ 朝: 0, 午前: 0, 早朝: 0, 昼: 12, 正午: 12, 午後: 12, 夕方: 12, 夜: 12, 晩: 12, 夜中: 12, 今夜: 12 }, '時', '分', '半'),
+      ...wordTimeRules({ morning: ['朝に', '朝', '午前中に', '午前中', '起きたら'], noon: ['正午に', '正午', 'お昼に', 'お昼', '昼に', '昼休みに'], afternoon: ['午後に', '午後'], evening: ['夜に', '夜', '夕方に', '夕方', '晩に', '晩', '今夜', '寝る前に'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }, false),
+    ],
+    repeat: [
+      weeklyOnRule(['毎週の', '毎週'], WEEKDAYS.names, { boundaries: false, noSpace: true }),
+      monthlyOnRule(/毎月(?:の)?(\d{1,2})日/u),
+      repeatWords(['毎朝', '毎日朝', '毎日の朝'], 'daily', 8, false),
+      repeatWords(['毎晩', '毎夜', '毎日夜', '毎日の夜', '毎日寝る前'], 'daily', 20, false),
+      repeatWords(['毎日午後'], 'daily', 15, false),
+      repeatWords(['毎日', '日々'], 'daily', undefined, false),
+      repeatWords(['毎週', '週に一度', '週一で', '週一'], 'weekly', undefined, false),
+      repeatWords(['毎月', '月に一度', '月一で', '月一', '毎月初め', '月初に'], 'monthly', undefined, false),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['明後日', 'あさって'], 2, false),
+      dayWords(['明日', 'あした', '明朝'], 1, false),
+      dayWords(['今日', 'きょう', '今夜', '今晩'], 0, false),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['来週の', '来週', '今週の', '今週', '次の'], boundaries: false, noSpace: true, nextWords: ['来週', '次'] }),
+    ],
+    dayLate: [futureDayOfMonthRule(/(\d{1,2})日(?:に)?/u)],
+    strip: [/^(?:に|の|を|で|は|と|って|そして|それから|、|,|\s)+/u, /(?:ように|よう|って|と|ことを|のを|を|に|ね|よ|の|ください|下さい|お願いします|お願い|してほしい|して欲しい|、|,)+$/u],
+  },
   contextualStrings: ['円', 'ランチ', '家賃', '給料', '目標', 'コンビニ', 'タクシー'],
 };

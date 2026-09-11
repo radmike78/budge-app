@@ -51,12 +51,19 @@ export function CategoryPicker({ visible, onClose, onPick, kind, selectedId, cat
   );
 }
 
-export function DatePicker({ visible, onClose, value, onPick, future }: { visible: boolean; onClose: () => void; value: string; onPick: (d: string) => void; future?: boolean }) {
+export function DatePicker({ visible, onClose, value, onPick, future, mode }: { visible: boolean; onClose: () => void; value: string; onPick: (d: string) => void; future?: boolean; mode?: 'reminder' }) {
   const t = today();
   const s = useT();
   const fmt = useDateFormat();
   const [custom, setCustom] = useState(value);
-  const quick = future
+  const quick = mode === 'reminder'
+    ? [
+        { label: s.today, date: t },
+        { label: s.tomorrow, date: addDays(t, 1) },
+        { label: s.inAWeek, date: addDays(t, 7) },
+        { label: s.inAMonth, date: addDays(t, 30) },
+      ]
+    : future
     ? [
         { label: s.inAMonth, date: addDays(t, 30) },
         { label: s.in3Months, date: addDays(t, 90) },
@@ -83,6 +90,31 @@ export function DatePicker({ visible, onClose, value, onPick, future }: { visibl
         <Button title={s.use} disabled={!valid} onPress={() => { onPick(custom); onClose(); }} />
       </Row>
       {value ? <Text variant="small" style={{ marginTop: spacing.md }}>{s.currently(friendlyDate(value, t, fmt))}</Text> : null}
+    </Sheet>
+  );
+}
+
+const QUICK_TIMES = ['07:00', '08:00', '09:00', '12:00', '15:00', '18:00', '20:00', '21:00'];
+const TIME_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+
+/** Time of day for reminders: a few common hours plus a typed HH:MM. */
+export function TimePicker({ visible, onClose, value, onPick }: { visible: boolean; onClose: () => void; value: string; onPick: (t: string) => void }) {
+  const s = useT();
+  const [custom, setCustom] = useState(value);
+  const valid = TIME_RE.test(custom);
+  const normalized = valid ? custom.padStart(5, '0') : custom;
+  return (
+    <Sheet visible={visible} onClose={onClose} title={s.time}>
+      <Row style={{ flexWrap: 'wrap' }}>
+        {QUICK_TIMES.map((q) => (
+          <Chip key={q} label={q} selected={value === q} onPress={() => { onPick(q); onClose(); }} />
+        ))}
+      </Row>
+      <View style={{ height: spacing.lg }} />
+      <Row gap={spacing.sm} align="flex-end">
+        <Field label={s.orTypeTime} placeholder="HH:MM" value={custom} onChangeText={setCustom} autoCapitalize="none" keyboardType="numbers-and-punctuation" style={{ flex: 1, marginBottom: 0 }} hint={custom && !valid ? s.timeFormatHint : undefined} />
+        <Button title={s.use} disabled={!valid} onPress={() => { onPick(normalized); onClose(); }} />
+      </Row>
     </Sheet>
   );
 }

@@ -5,11 +5,14 @@ import { useAppStore } from '@/store/useAppStore';
 import { radius, spacing, useTheme } from '@/theme';
 import { friendlyDate, longDate, nowIso, today } from '@/lib/dates';
 import { parseMoneyInput } from '@/lib/money';
+import { goalPlanSentence } from '@/lib/plain';
 import { newId } from '@/lib/ids';
 import { categoryName, hintText, useDateFormat, useLocale, useMoney, useT } from '@/i18n';
 import type { ParseResult } from '@/parser';
-import type { TxType } from '@/types';
-import { CategoryPicker, DatePicker, Sheet } from './pickers';
+import type { GoalKind, ReminderRepeat, TxType } from '@/types';
+import { CategoryPicker, DatePicker, Sheet, TimePicker } from './pickers';
+import { notify } from '@/lib/dialogs';
+import { reminderSentence } from '@/lib/plain';
 import { Button, Field, Row, Segmented, Text } from './ui';
 
 /**
@@ -27,7 +30,9 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
   const addTransaction = useAppStore((s) => s.addTransaction);
   const saveGoal = useAppStore((s) => s.saveGoal);
   const contributeToGoal = useAppStore((s) => s.contributeToGoal);
+  const currency = useAppStore((s) => s.settings?.currency ?? 'USD');
   const learnCategory = useAppStore((s) => s.learnCategory);
+  const addReminder = useAppStore((s) => s.addReminder);
 
   const [amountText, setAmountText] = useState('');
   const [type, setType] = useState<TxType>('expense');
@@ -35,6 +40,11 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
   const [note, setNote] = useState('');
   const [date, setDate] = useState(today());
   const [goalName, setGoalName] = useState('');
+  const [goalKind, setGoalKind] = useState<GoalKind>('saving');
+  const [reminderText, setReminderText] = useState('');
+  const [reminderTime, setReminderTime] = useState('09:00');
+  const [reminderRepeat, setReminderRepeat] = useState<ReminderRepeat>('none');
+  const [showTime, setShowTime] = useState(false);
   const [targetDate, setTargetDate] = useState<string | null>(null);
   const [logTransfer, setLogTransfer] = useState(true);
   const [showCat, setShowCat] = useState(false);
@@ -51,6 +61,10 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
     setNote(result.note ?? '');
     setDate(result.occurredAt);
     setGoalName(result.goalName ?? '');
+    setGoalKind(result.goalKind ?? 'saving');
+    setReminderText(result.reminderText ?? '');
+    setReminderTime(result.reminderTime ?? '09:00');
+    setReminderRepeat(result.reminderRepeat ?? 'none');
     setTargetDate(result.targetDate);
     setLogTransfer(true);
     setError(null);
@@ -70,12 +84,30 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
 
   const save = async () => {
     if (!result) return;
+    if (result.kind === 'reminder') {
+      if (!reminderText.trim()) { setError(t.giveReminderText); return; }
+      setSaving(true);
+      try {
+        const state = await addReminder({ text: reminderText.trim(), date, time: reminderTime, repeat: reminderRepeat });
+        const when = reminderSentence({ id: '', text: reminderText, date, time: reminderTime, repeat: reminderRepeat, notificationId: null, createdAt: '' }, today(), locale);
+        if (state === 'granted') {
+          onDone(t.toastReminderSet(when));
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        } else {
+          onDone(t.toastReminderSaved);
+          notify(t.notificationsNeeded, state === 'unsupported' ? t.remindersUnsupported : t.notificationsNeededBody);
+        }
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     if (amount == null || amount <= 0) { setError(t.enterAmount); return; }
     setSaving(true);
     try {
       if (result.kind === 'goal') {
         if (!goalName.trim()) { setError(t.giveGoalName); return; }
-        await saveGoal({ id: newId(), name: goalName.trim(), targetAmount: amount, currentAmount: 0, targetDate, createdAt: nowIso(), completed: false });
+        await saveGoal({ id: newId(), name: goalName.trim(), kind: goalKind, targetAmount: amount, currentAmount: 0, targetDate, createdAt: nowIso(), completed: false });
         onDone(t.toastGoalSet(money(amount, { compact: true }), goalName.trim(), targetDate ? longDate(targetDate, today(), fmt) : null));
       } else if (result.kind === 'contribution' && goal) {
         await contributeToGoal(goal.id, amount, { logTransfer, occurredAt: date, rawInput: result.raw });
@@ -92,7 +124,7 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
   };
 
   if (!result) return null;
-  const title = result.kind === 'goal' ? t.newGoal : result.kind === 'contribution' ? t.addTo(goal?.name ?? '') : type === 'income' ? t.moneyIn : t.moneyOut;
+  const title = result.kind === 'reminder' ? t.newReminder : result.kind === 'goal' ? t.newGoal : result.kind === 'contribution' ? t.addTo(goal?.name ?? '') : type === 'income' ? t.moneyIn : t.moneyOut;
   const catLabel = category ? `${category.icon ?? ''} ${categoryName(category, t)}`.trim() : t.pickCategory;
 
   return (
@@ -109,7 +141,7 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
         </View>
       ) : null}
 
-      <Field
+      {result.kind !== 'reminder' ? <Field
         label={result.kind === 'goal' ? t.targetAmount : t.amount}
         value={amountText}
         onChangeText={setAmountText}
@@ -117,23 +149,46 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
         placeholder={locale.format.decimal === ',' ? '0,00' : '0.00'}
         autoFocus={amount == null}
         inputStyle={{ fontSize: 28, fontWeight: '700' }}
-      />
+      /> : null}
 
-      {result.kind === 'goal' ? (
+      {result.kind === 'reminder' ? (
         <>
+          <Field label={t.reminderWhat} value={reminderText} onChangeText={setReminderText} placeholder={t.optional} autoFocus={!reminderText} />
+          <Text variant="label" style={{ marginBottom: 6 }}>{t.categoryDate}</Text>
+          <Row style={{ marginBottom: spacing.lg, flexWrap: 'wrap' }}>
+            <Button tone="secondary" small title={friendlyDate(date, today(), fmt)} onPress={() => setShowDate(true)} />
+            <Button tone="secondary" small title={reminderTime} onPress={() => setShowTime(true)} />
+          </Row>
+          <Text variant="label" style={{ marginBottom: 6 }}>{t.repeat}</Text>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Segmented value={reminderRepeat} onChange={setReminderRepeat} options={[{ value: 'none', label: t.repeatOnce }, { value: 'daily', label: t.repeatDaily }, { value: 'weekly', label: t.repeatWeekly }, { value: 'monthly', label: t.repeatMonthly }]} />
+          </View>
+          <DatePicker visible={showDate} onClose={() => setShowDate(false)} value={date} onPick={setDate} mode="reminder" />
+          <TimePicker visible={showTime} onClose={() => setShowTime(false)} value={reminderTime} onPick={setReminderTime} />
+        </>
+      ) : result.kind === 'goal' ? (
+        <>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Segmented value={goalKind} onChange={setGoalKind} options={[{ value: 'saving', label: t.goalKindSaving }, { value: 'debt', label: t.goalKindDebt }]} />
+          </View>
           <Field label={t.goalName} value={goalName} onChangeText={setGoalName} placeholder={t.goalNamePlaceholder} />
           <Text variant="label" style={{ marginBottom: 6 }}>{t.targetDate}</Text>
           <Row style={{ marginBottom: spacing.lg }}>
             <Button tone="secondary" small title={targetDate ? longDate(targetDate, today(), fmt) : t.noDate} onPress={() => setShowTargetDate(true)} />
             {targetDate ? <Button tone="ghost" small title={t.clear} onPress={() => setTargetDate(null)} /> : null}
           </Row>
+          {amount != null && amount > 0 ? (
+            <View style={[styles.hint, { backgroundColor: colors.accentSoft }]}>
+              <Text variant="small" color={colors.text}>{goalPlanSentence(amount, 0, targetDate, goalKind, currency, today(), locale)}</Text>
+            </View>
+          ) : null}
           <DatePicker visible={showTargetDate} onClose={() => setShowTargetDate(false)} value={targetDate ?? today()} onPick={setTargetDate} future />
         </>
       ) : result.kind === 'contribution' && goal ? (
         <>
           <Text variant="muted" style={{ marginBottom: spacing.md }}>{t.goalSoFar(goal.name, money(goal.currentAmount, { compact: true }), money(goal.targetAmount, { compact: true }))}</Text>
           <Row style={{ justifyContent: 'space-between', marginBottom: spacing.lg }}>
-            <Text variant="body" style={{ flex: 1 }}>{t.alsoLogTransfer}</Text>
+            <Text variant="body" style={{ flex: 1 }}>{goal.kind === 'debt' ? t.alsoLogPayment : t.alsoLogTransfer}</Text>
             <Switch value={logTransfer} onValueChange={setLogTransfer} trackColor={{ true: colors.accent }} />
           </Row>
           <Row style={{ marginBottom: spacing.lg }}>
@@ -158,7 +213,7 @@ export function ConfirmationCard({ result, onDone, onCancel }: { result: ParseRe
       )}
 
       {error ? <Text variant="small" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</Text> : null}
-      <Button title={result.kind === 'goal' ? t.setGoal : t.save} onPress={save} loading={saving} />
+      <Button title={result.kind === 'reminder' ? t.setReminder : result.kind === 'goal' ? t.setGoal : t.save} onPress={save} loading={saving} />
     </Sheet>
   );
 }

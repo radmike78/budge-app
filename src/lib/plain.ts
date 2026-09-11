@@ -2,10 +2,10 @@
  * Plain-language sentences for the Home, Budget and Goals screens.
  * Tone: calm, factual, no guilt. Wording comes from the active locale.
  */
-import type { Category, CategoryTotal, Goal, MonthStats } from '@/types';
+import type { Category, CategoryTotal, Goal, GoalKind, MonthStats, Reminder } from '@/types';
 import type { LocaleDef } from '@/i18n/types';
 import { en } from '@/i18n/locales/en';
-import { addDays, daysBetween, longDate, monthName, type DateFormat } from './dates';
+import { addDays, daysBetween, friendlyDate, longDate, monthName, type DateFormat } from './dates';
 import { formatMoney } from './money';
 
 function moneyFn(currency: string, locale: LocaleDef) {
@@ -52,7 +52,7 @@ export function goalProgress(goal: Goal, currency: string, todayStr: string, loc
   const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
   const fraction = goal.targetAmount > 0 ? Math.min(1, goal.currentAmount / goal.targetAmount) : 0;
 
-  if (goal.completed || remaining === 0) return { remaining: 0, fraction: 1, status: 'done', sentence: S.goalDone(goal, money) };
+  if (goal.completed || remaining === 0) return { remaining: 0, fraction: 1, status: 'done', sentence: goal.kind === 'debt' ? S.goalDoneDebt(goal, money) : S.goalDone(goal, money) };
 
   const createdDay = goal.createdAt.slice(0, 10);
   const elapsedDays = Math.max(1, daysBetween(createdDay, todayStr));
@@ -94,6 +94,31 @@ export function expenseBreakdown(stats: MonthStats, categories: Category[]): { c
     .filter((b) => (b.categoryId ? byId.get(b.categoryId)?.kind !== 'income' : true))
     .map((b: CategoryTotal) => ({ category: b.categoryId ? byId.get(b.categoryId) ?? null : null, total: b.total, share: stats.expenses > 0 ? b.total / stats.expenses : 0 }))
     .sort((a, b) => b.total - a.total);
+}
+
+/**
+ * "The plan: set aside about $417 a month ($97 a week) until Sep 2027."
+ * Shown before a goal is saved so the user sees what they are signing up for.
+ */
+export function goalPlanSentence(targetAmount: number, currentAmount: number, targetDate: string | null, kind: GoalKind, currency: string, todayStr: string, locale: LocaleDef = en): string {
+  const money = moneyFn(currency, locale);
+  const S = locale.sentences;
+  const remaining = Math.max(0, targetAmount - currentAmount);
+  const debt = kind === 'debt';
+  if (!targetDate || remaining === 0) return S.goalPlanNoDate(money(remaining), debt);
+  const daysLeft = Math.max(1, daysBetween(todayStr, targetDate));
+  const months = Math.max(1, Math.round(daysLeft / 30.44));
+  const weeks = Math.max(1, Math.round(daysLeft / 7));
+  return S.goalPlan(money(Math.ceil(remaining / months)), money(Math.ceil(remaining / weeks)), longDate(targetDate, todayStr, dateFmt(locale)), debt);
+}
+
+/** "Every day at 20:00", "Fri, Sep 18 at 09:00", "On the 15th of every month at 12:00". */
+export function reminderSentence(rem: Reminder, todayStr: string, locale: LocaleDef = en): string {
+  const fmt = dateFmt(locale);
+  const [y, m, d] = rem.date.split('-').map((n) => Number(n));
+  const weekday = fmt.weekdaysShort[new Date(y, m - 1, d).getDay()] ?? '';
+  const dateLabel = friendlyDate(rem.date, todayStr, fmt);
+  return locale.s.reminderSchedule(rem.repeat, dateLabel, rem.time, weekday, d);
 }
 
 export function goalDeadlineLabel(goal: Goal, todayStr: string, locale: LocaleDef = en): string | null {

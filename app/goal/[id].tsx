@@ -6,11 +6,12 @@ import { spacing, useTheme } from '@/theme';
 import { longDate, nowIso, today } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { parseMoneyInput } from '@/lib/money';
-import { goalProgress } from '@/lib/plain';
+import { goalPlanSentence, goalProgress } from '@/lib/plain';
+import type { GoalKind } from '@/types';
 import { useDateFormat, useLocale, useMoney, useT } from '@/i18n';
 import { confirmDialog } from '@/lib/dialogs';
 import { DatePicker } from '@/components/pickers';
-import { Button, Card, Field, ProgressBar, Row, Screen, Text } from '@/components/ui';
+import { Button, Card, Field, ProgressBar, Row, Screen, Segmented, Text } from '@/components/ui';
 
 export default function GoalEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,6 +31,7 @@ export default function GoalEditor() {
   const decimalComma = locale.format.decimal === ',';
 
   const [name, setName] = useState(existing?.name ?? '');
+  const [kind, setKind] = useState<GoalKind>(existing?.kind ?? 'saving');
   const [target, setTarget] = useState(existing ? String(existing.targetAmount) : '');
   const [current, setCurrent] = useState(existing ? String(existing.currentAmount) : '0');
   const [targetDate, setTargetDate] = useState<string | null>(existing?.targetDate ?? null);
@@ -43,7 +45,7 @@ export default function GoalEditor() {
     const currentValue = parseMoneyInput(current, decimalComma) ?? 0;
     if (!name.trim()) { setError(t.giveGoalName); return; }
     if (targetValue == null || targetValue <= 0) { setError(t.enterTarget); return; }
-    await save({ id: existing?.id ?? newId(), name: name.trim(), targetAmount: targetValue, currentAmount: currentValue, targetDate, createdAt: existing?.createdAt ?? nowIso(), completed: currentValue >= targetValue });
+    await save({ id: existing?.id ?? newId(), name: name.trim(), kind, targetAmount: targetValue, currentAmount: currentValue, targetDate, createdAt: existing?.createdAt ?? nowIso(), completed: currentValue >= targetValue });
     router.back();
   };
 
@@ -61,6 +63,8 @@ export default function GoalEditor() {
   };
 
   const progress = existing ? goalProgress(existing, currency, today(), locale) : null;
+  const targetPreview = parseMoneyInput(target, decimalComma);
+  const plan = targetPreview != null && targetPreview > 0 ? goalPlanSentence(targetPreview, parseMoneyInput(current, decimalComma) ?? 0, targetDate, kind, currency, today(), locale) : null;
 
   return (
     <Screen keyboard>
@@ -71,25 +75,29 @@ export default function GoalEditor() {
           {!existing.completed ? (
             <>
               <Row style={{ marginTop: spacing.lg }} align="flex-end">
-                <Field label={t.addMoney} value={addAmount} onChangeText={setAddAmount} keyboardType="decimal-pad" placeholder="50" style={{ flex: 1, marginBottom: 0 }} />
+                <Field label={kind === 'debt' ? t.logPayment : t.addMoney} value={addAmount} onChangeText={setAddAmount} keyboardType="decimal-pad" placeholder="50" style={{ flex: 1, marginBottom: 0 }} />
                 <Button title={t.add} onPress={onAdd} disabled={!parseMoneyInput(addAmount, decimalComma)} />
               </Row>
               <Row style={{ marginTop: spacing.sm }}>
-                <Button tone="ghost" small title={`${logTransfer ? '✓ ' : ''}${t.alsoLogTransferShort}`} onPress={() => setLogTransfer(!logTransfer)} />
+                <Button tone="ghost" small title={`${logTransfer ? '✓ ' : ''}${kind === 'debt' ? t.alsoLogPaymentShort : t.alsoLogTransferShort}`} onPress={() => setLogTransfer(!logTransfer)} />
               </Row>
             </>
           ) : null}
         </Card>
       ) : null}
 
+      <View style={{ marginBottom: spacing.lg, marginTop: existing ? 0 : spacing.sm }}>
+        <Segmented value={kind} onChange={setKind} options={[{ value: 'saving', label: t.goalKindSaving }, { value: 'debt', label: t.goalKindDebt }]} />
+      </View>
       <Field label={t.nameLabel} value={name} onChangeText={setName} placeholder={t.goalNamePlaceholder} autoFocus={isNew} />
       <Field label={t.targetAmount} value={target} onChangeText={setTarget} keyboardType="decimal-pad" placeholder="500" />
-      {existing ? <Field label={t.savedSoFar} value={current} onChangeText={setCurrent} keyboardType="decimal-pad" /> : null}
+      {existing ? <Field label={kind === 'debt' ? t.paidSoFar : t.savedSoFar} value={current} onChangeText={setCurrent} keyboardType="decimal-pad" /> : null}
       <Text variant="label" style={{ marginBottom: 6 }}>{t.targetDate}</Text>
       <Row style={{ marginBottom: spacing.lg }}>
         <Button tone="secondary" small title={targetDate ? longDate(targetDate, today(), fmt) : t.noDate} onPress={() => setShowDate(true)} />
         {targetDate ? <Button tone="ghost" small title={t.clear} onPress={() => setTargetDate(null)} /> : null}
       </Row>
+      {plan ? <Text variant="muted" style={{ marginBottom: spacing.lg }}>{plan}</Text> : null}
       {error ? <Text variant="small" color={colors.danger} style={{ marginBottom: spacing.sm }}>{error}</Text> : null}
       <Button title={isNew ? t.setGoal : t.save} onPress={onSave} />
       {existing ? (

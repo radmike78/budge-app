@@ -1,6 +1,7 @@
 import { ISO_RULE, cjkByMonthRule, cjkMonthDayRule, dayOfMonthRule, relativeFutureRules, relativePastRules, weekdayRule, wordRule } from '../dateRules';
 import { expandK, koreanNumeralsToDigits, normalizeDecimalPoint } from '../numbers';
 import type { LanguagePack } from '../types';
+import { cjkClockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 import { fromDateString } from '@/lib/dates';
 
 const WEEKDAYS = {
@@ -76,9 +77,11 @@ export const ko: LanguagePack = {
     cjkByMonthRule('월', ['말까지', '까지', '안에', '전에', '전까지', '전', '말', '안으로', '중에', '중']),
     wordRule(['내후년'], (_m, t) => `${fromDateString(t).getFullYear() + 2}-01-01`, false),
   ],
-  goalLead: /^(?:목표|저축 목표|저축목표|새 목표|새로운 목표)\s*:?\s*/,
+  goalLead: /^(?:목표|저축 목표|저축목표|새 목표|새로운 목표|상환 목표|계획|계획 세워|계획을 세워|계획 만들어|계획을 만들어)\s*:?\s*/,
   goalIntent: /(?:모으고 싶어요|모으고 싶어|모으고 싶다|모으고 싶은|모으고 싶|저축하고 싶어요|저축하고 싶어|저금하고 싶어|모으려고|모을 거|모을거|모아야|모으기|저축하고 싶|저축하려고|저축할|저금하고 싶|모으자|모을래|모으고|모을 계획|모을 예정|모아서|마련하고 싶|마련하려고)/,
-  goalPastVerbs: /(?:모았|넣었|넣음|저축했|저금했|이체했|보냈|추가했|입금했|옮겼|더했|보탰)/,
+  goalPastVerbs: /(?:모았|넣었|넣음|저축했|저금했|이체했|보냈|추가했|입금했|옮겼|더했|보탰|갚았|상환했|냈)/,
+  debtIntent: /(?:갚고 싶어요|갚고 싶어|갚고 싶다|갚고 싶은|갚고 싶|갚으려고|갚을게|갚을|갚기|갚자|다 갚|갚아야|갚는|상환하고 싶어요|상환하고 싶어|상환하|상환할|청산하|없애고 싶어요|없애고 싶어|없애고 싶|털고 싶어|털고 싶|줄이고 싶어|줄이고 싶)/,
+  debtWords: /(?:빚|대출|카드값|카드 값|신용카드|부채|학자금|할부|마이너스 통장|마통|잔액)/,
   contributionVerbs: /(?:모았|넣었|넣음|넣기|저축했|저금했|이체했|추가했|추가|입금했|입금|옮겼|더했|보탰|넣)/,
   contributionPreps: '에 넣|에 추가|에 입금|에 이체|에 저축|에 저금|에 보|에다가|에다|에|으로|로|용 저축|저축에|통장에|적금에',
   forWords: '을 위해서|를 위해서|을 위해|를 위해|위해서|위해|위한|용으로|용|사려고|가려고|하려고|살려고|갈려고|할려고|사기 위해|가기 위해|하기 위해|마련',
@@ -88,5 +91,31 @@ export const ko: LanguagePack = {
   trailingFiller: /(?:\s+(?:오늘|어제|정도|쯤|가량|약|좀|대충|정도로|밖에|씀|썼음|썼어|썼다|냈어|냈다|샀어|샀다|함|했음|했어|했다|이야|야|요|네|임|음|것|거|거임|나감|나갔음|들었음|들었어|결제함|결제했음|지출|지불)|(?:에서|에게|한테|으로|로|에|을|를|은|는|의|랑|이랑|하고|께|께서|서))+$/u,
   noteStrip: [],
   listSeparators: [',', '，', '하고', '그리고', '랑', '이랑', '또', '그다음', '거기에', '과', '와'],
+  reminder: {
+    lead: /(?:(?:나에게|나한테|저에게|저한테)\s*)?(?:알려\s?줘|알려\s?주세요|알려\s?줄래|알려\s?주라|알림\s?(?:설정|맞춰|추가|해\s?줘|해\s?주세요)|알림|리마인드(?:\s?해\s?줘|\s?해\s?주세요)?|리마인더(?:\s?설정|\s?추가|\s?해\s?줘)?|상기시켜\s?줘|잊지\s?않게\s?해\s?줘|잊지\s?않도록\s?해\s?줘|까먹지\s?않게\s?해\s?줘|기억시켜\s?줘)(?:요)?/u,
+    time: [
+      cjkClockRule({ 아침: 0, 오전: 0, 새벽: 0, 낮: 12, 정오: 12, 점심: 12, 오후: 12, 저녁: 12, 밤: 12, 오늘밤: 12 }, '시', '분', '반'),
+      ...wordTimeRules({ morning: ['아침에', '아침', '오전에', '오전 중에', '일어나면'], noon: ['정오에', '정오', '점심에', '점심때', '점심 때'], afternoon: ['오후에', '오후'], evening: ['저녁에', '저녁', '밤에', '밤', '오늘밤', '자기 전에'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }, false),
+    ],
+    repeat: [
+      weeklyOnRule(['매주', '매'], WEEKDAYS.names, { boundaries: false, noSpace: true }),
+      monthlyOnRule(/(?:매달|매월)\s?(\d{1,2})일/u),
+      repeatWords(['매일 아침', '매일아침', '아침마다'], 'daily', 8, false),
+      repeatWords(['매일 저녁', '매일저녁', '저녁마다', '매일 밤', '매일밤', '밤마다', '매일 자기 전'], 'daily', 20, false),
+      repeatWords(['매일 오후', '오후마다'], 'daily', 15, false),
+      repeatWords(['매일', '날마다', '매일매일'], 'daily', undefined, false),
+      repeatWords(['매주', '주마다', '일주일마다', '주 1회'], 'weekly', undefined, false),
+      repeatWords(['매달', '매월', '달마다', '매달 초', '매월 초', '월 1회'], 'monthly', undefined, false),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['모레'], 2, false),
+      dayWords(['내일'], 1, false),
+      dayWords(['오늘', '오늘밤', '오늘 저녁', '오늘 아침'], 0, false),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['다음주', '다음 주', '이번주', '이번 주', '다음', '돌아오는', '오는'], boundaries: false, noSpace: true, nextWords: ['다음', '돌아오는', '오는'] }),
+    ],
+    dayLate: [futureDayOfMonthRule(/(\d{1,2})일(?:에)?/u)],
+    strip: [/^(?:에|을|를|는|은|이|가|도|께|한테|에게|그리고|그때|그 때|\s)+/u, /(?:라고|하라고|도록|하도록|기로|는\s?거|는\s?것|것|을|를|에|고|줘|주세요|해\s?줘|하기|하라|해야\s?해|해야\s?함|해야|하는\s?거|잊지\s?말고|\s)+$/u],
+  },
   contextualStrings: ['원', '점심', '월세', '월급', '목표', '커피', '택시', '배달'],
 };

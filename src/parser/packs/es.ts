@@ -1,6 +1,7 @@
-import { ISO_RULE, byMonthRule, byYearRule, dayMonthRule, dayOfMonthRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
+import { ISO_RULE, byMonthRule, byYearRule, endOfYearRule, dayMonthRule, dayOfMonthRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
 import { makeNumberWords } from '../numbers';
 import type { LanguagePack } from '../types';
+import { clockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 
 const MONTHS = { names: { enero: 0, ene: 0, febrero: 1, feb: 1, marzo: 2, mar: 2, abril: 3, abr: 3, mayo: 4, may: 4, junio: 5, jun: 5, julio: 6, jul: 6, agosto: 7, ago: 7, septiembre: 8, setiembre: 8, sept: 8, sep: 8, set: 8, octubre: 9, oct: 9, noviembre: 10, nov: 10, diciembre: 11, dic: 11 } };
 const WEEKDAYS = { names: { domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3, jueves: 4, viernes: 5, sábado: 6, sabado: 6 }, lastAfter: ['pasado'], prefixes: ['el', 'este'] };
@@ -72,20 +73,23 @@ export const es: LanguagePack = {
       nextYear: ['el año que viene', 'para el año que viene', 'el próximo año', 'el proximo año', 'el año próximo', 'el año proximo', 'para el próximo año', 'el año que entra'],
       nextMonth: ['el mes que viene', 'para el mes que viene', 'el próximo mes', 'el proximo mes', 'el mes próximo', 'el mes proximo', 'para el próximo mes', 'el mes que entra'],
       christmas: ['para navidad', 'antes de navidad', 'para navidades', 'navidad'],
-      inDays: /\ben (\d+|un) d[ií]as?\b/,
-      inWeeks: /\ben (\d+|una) semanas?\b/,
-      inMonths: /\ben (\d+|un) mes(?:es)?\b/,
-      inYears: /\ben (\d+|un) años?\b/,
+      inDays: /\b(?:en|dentro de|durante|en los próximos|en los proximos) (\d+|un) d[ií]as?\b/,
+      inWeeks: /\b(?:en|dentro de|durante|en las próximas|en las proximas) (\d+|una) semanas?\b/,
+      inMonths: /\b(?:en|dentro de|durante|en los próximos|en los proximos) (\d+|un) mes(?:es)?\b/,
+      inYears: /\b(?:en|dentro de|durante|en los próximos|en los proximos) (\d+|un) años?\b/,
       oneWords: ['un', 'una'],
       seasons: { spring: ['para la primavera', 'antes de la primavera', 'para primavera'], summer: ['para el verano', 'antes del verano', 'para verano', 'este verano'], fall: ['para el otoño', 'antes del otoño', 'para otoño'], winter: ['para el invierno', 'antes del invierno', 'para invierno'] },
     }),
     dayMonthRule(MONTHS, { pre: ['para el', 'antes del', 'hasta el', 'el', 'para'], between: ['de'], future: true }),
-    byMonthRule(MONTHS, ['para', 'antes de', 'hasta', 'en', 'para finales de', 'a finales de']),
-    byYearRule(['para', 'antes de', 'hasta', 'en']),
+    endOfYearRule(['para finales de', 'a finales de', 'para fines de', 'a fin de', 'antes de que acabe', 'hasta finales de', 'a finales del']),
+    byMonthRule(MONTHS, ['para', 'antes de', 'hasta', 'en', 'para finales de', 'a finales de', 'para el próximo', 'para el proximo', 'el próximo', 'el proximo']),
+    byYearRule(['para', 'antes de', 'hasta', 'en', 'durante']),
   ],
-  goalLead: /^(?:meta|objetivo|nueva meta|nuevo objetivo|meta de ahorro|objetivo de ahorro)\s*:?\s*/,
+  goalLead: /^(?:meta|objetivo|nueva meta|nuevo objetivo|meta de ahorro|objetivo de ahorro|(?:haz|hacer|crea|crear|quiero|fija|fijar|pon|poner|establece|establecer)(?: un| una)?(?: nuevo| nueva)? (?:plan|meta|objetivo)(?: para| de)?)\s*:?\s*/iu,
   goalIntent: /(?<![\p{L}])(?:quiero ahorrar|me gustaría ahorrar|me gustaria ahorrar|necesito ahorrar|quiero juntar|quiero guardar|quiero reunir|tengo que ahorrar|ahorrar|juntar|reunir)(?![\p{L}])/iu,
-  goalPastVerbs: /(?<![\p{L}])(?:ahorré|ahorre|aparté|aparte|puse|añadí|añadi|agregué|agregue|transferí|transferi|junté|junte|guardé|guarde|metí|meti|sumé|sume)(?![\p{L}])/iu,
+  goalPastVerbs: /(?<![\p{L}])(?:ahorré|ahorre|aparté|aparte|puse|añadí|añadi|agregué|agregue|transferí|transferi|junté|junte|guardé|guarde|metí|meti|sumé|sume|pagué|pague)(?![\p{L}])/iu,
+  debtIntent: /(?<![\p{L}])(?:(?:quiero |me gustaría |me gustaria |necesito |tengo que |voy a |quisiera |queremos |vamos a |plan para |plan de )?(?:pagar|liquidar|saldar|amortizar|cancelar|reducir|quitarme|quitarnos|librarme de|salir de|terminar de pagar|acabar de pagar|sin deudas))(?![\p{L}])/iu,
+  debtWords: /(?<![\p{L}])(?:deudas?|tarjeta de crédito|tarjeta de credito|tarjeta|préstamos?|prestamos?|hipoteca|crédito|credito|lo que debo|saldo)(?![\p{L}])/iu,
   contributionVerbs: /(?<![\p{L}])(?:añad(?:í|i|ir|e|o)|agreg(?:ué|ue|ar|o|a)|pus(?:e|o)|poner|pongo|ahorr(?:é|e|o)|apart(?:é|e|o)|transfer(?:í|i)|junt(?:é|e|o)|guard(?:é|e|o)|met(?:í|i|o)|sum(?:é|e|o)|deposit(?:é|e|o))(?![\p{L}])/iu,
   contributionPreps: 'a|al|a la|para|para la|para el|hacia|en|en la|en el',
   forWords: 'para|para el|para la|para un|para una|para mi|para mis|para los|para las',
@@ -95,5 +99,32 @@ export const es: LanguagePack = {
   trailingFiller: /(?:\s+(?:hoy|ayer|en|de|del|por|para|con|a|al|el|la|los|las|un|una|y|cada|total|otra vez|también|por favor|gracias|eso|esto|más o menos|mas o menos|aprox))+$/,
   noteStrip: [],
   listSeparators: [',', ';', 'y', 'e', 'más', 'mas', 'también', 'luego', 'y luego', 'y también'],
+  reminder: {
+    lead: /(?<![\p{L}])(?:(?:puedes |podrías |podrias |por favor )?(?:recuérdame|recuerdame|recordarme|recuérdanos|recuerdanos|avísame|avisame|avisarme|ponme un recordatorio|pon un recordatorio|pon una alarma|ponme una alarma|crea un recordatorio|añade un recordatorio|agrega un recordatorio|quiero un recordatorio|necesito un recordatorio|recordatorio|no me dejes olvidar|que no se me olvide))(?![\p{L}])(?:\s+(?:de|que|para|sobre))?\s*:?/iu,
+    time: [
+      clockRule(['a las', 'a la', 'sobre las', 'hacia las', 'a eso de las', 'para las'], { dayParts: { 'de la mañana': 0, 'de la manana': 0, 'por la mañana': 0, 'por la manana': 0, 'de la tarde': 12, 'por la tarde': 12, 'de la noche': 12, 'por la noche': 12, 'del mediodía': 12, 'del mediodia': 12 } }),
+      ...wordTimeRules({ morning: ['por la mañana', 'por la manana', 'en la mañana', 'en la manana', 'de mañana', 'a primera hora'], noon: ['al mediodía', 'al mediodia', 'a mediodía', 'a mediodia', 'mediodía', 'mediodia', 'a la hora de comer'], afternoon: ['por la tarde', 'de tarde', 'en la tarde'], evening: ['por la noche', 'esta noche', 'de noche', 'en la noche', 'antes de dormir'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }),
+    ],
+    repeat: [
+      weeklyOnRule(['cada', 'todos los', 'los'], WEEKDAYS.names),
+      monthlyOnRule(/(?<![\p{L}])(?:el |los |para el )?(?:día |dia )?(\d{1,2}|primero|uno) de cada mes(?![\p{L}])/iu, { primero: 1, uno: 1 }),
+      repeatWords(['cada mañana', 'cada manana', 'todas las mañanas', 'todas las mananas'], 'daily', 8),
+      repeatWords(['cada noche', 'todas las noches'], 'daily', 20),
+      repeatWords(['cada tarde', 'todas las tardes'], 'daily', 15),
+      repeatWords(['cada día', 'cada dia', 'todos los días', 'todos los dias', 'a diario', 'diariamente', 'diario'], 'daily'),
+      repeatWords(['cada semana', 'todas las semanas', 'semanalmente', 'semanal', 'una vez a la semana'], 'weekly'),
+      repeatWords(['cada mes', 'todos los meses', 'mensualmente', 'mensual', 'una vez al mes', 'a principio de cada mes', 'a principios de cada mes'], 'monthly'),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['pasado mañana', 'pasado manana'], 2),
+      dayWords(['mañana', 'manana'], 1),
+      dayWords(['hoy', 'esta noche', 'esta tarde', 'esta mañana', 'esta manana'], 0),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['el próximo', 'el proximo', 'este', 'el', 'próximo', 'proximo', 'para el'], suffix: ['que viene', 'próximo', 'proximo'], nextWords: ['próximo', 'proximo', 'que viene'] }),
+      dayMonthRule(MONTHS, { pre: ['el', 'el día', 'el dia', 'para el'], between: ['de'], future: true }),
+    ],
+    dayLate: [futureDayOfMonthRule(/(?<![\p{L}])(?:el|para el|el día|el dia|día|dia) (\d{1,2}|primero)(?![\p{L}\p{N}:])/iu, { primero: 1 })],
+    strip: [/^(?:(?:de|que|para|sobre|a|y|por favor|tengo que|debo|hay que|que tengo que|que debo)\s+)+/iu, /(?:\s+(?:por favor|gracias|vale))+$/iu],
+  },
   contextualStrings: ['euros', 'dólares', 'pesos', 'supermercado', 'alquiler', 'nómina', 'meta', 'Netflix', 'Uber'],
 };

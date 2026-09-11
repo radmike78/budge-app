@@ -1,11 +1,12 @@
-import type { Category, Goal, TxType } from '@/types';
+import type { Category, Goal, GoalKind, ReminderRepeat, TxType } from '@/types';
 import { FALLBACK_EXPENSE_CATEGORY_ID, FALLBACK_INCOME_CATEGORY_ID } from '@/lib/defaultCategories';
 import { applyRules } from './dateRules';
+import { nextMonthDay, nextWeekday, pad2 } from './reminderRules';
 import { normalizeDecimalComma } from './numbers';
 import { getPack } from './packs';
 import type { LanguagePack } from './types';
 
-export type ParseKind = 'transaction' | 'goal' | 'contribution' | 'unknown';
+export type ParseKind = 'transaction' | 'goal' | 'contribution' | 'reminder' | 'unknown';
 
 export interface ParseResult {
   kind: ParseKind;
@@ -21,9 +22,14 @@ export interface ParseResult {
   dateExplicit: boolean;
   /** Goal creation */
   goalName: string | null;
+  goalKind: GoalKind;
   targetDate: string | null;
   /** Contribution to an existing goal */
   goalId: string | null;
+  /** Reminder: what to say, when (occurredAt holds the date), and how often */
+  reminderText: string | null;
+  reminderTime: string | null;
+  reminderRepeat: ReminderRepeat;
   /** 0..1 overall confidence in the parse */
   confidence: number;
   /** True when the app should ask the user to check the result more carefully (or escalate to Tier 2). */
@@ -39,6 +45,8 @@ export interface ParseContext {
   keywordMap: Record<string, string>;
   /** YYYY-MM-DD */
   today: string;
+  /** HH:MM local time, used to decide whether a reminder with no date means today or tomorrow. */
+  nowTime?: string;
   /** Language code ('en', 'es', ...). Defaults to English. */
   language?: string;
 }
@@ -51,8 +59,12 @@ export const HINT = {
   assumedExpense: 'hint.assumedExpense',
   assumedIncome: 'hint.assumedIncome',
   goalAmount: 'hint.goalAmount',
+  debtAmount: 'hint.debtAmount',
   goalName: 'hint.goalName',
   goalNoDate: 'hint.goalNoDate',
+  reminderText: 'hint.reminderText',
+  reminderTime: 'hint.reminderTime',
+  reminderDate: 'hint.reminderDate',
   contributionAmount: 'hint.contributionAmount',
   stillNoAmount: 'hint.stillNoAmount',
   assistUnavailable: 'hint.assistUnavailable',
@@ -155,7 +167,9 @@ export function findAmounts(text: string, pack: LanguagePack): AmountCandidate[]
       if (/^(st|nd|rd|th|º|ª|°|\.|%|\s?%|\s?(am|pm)\b|:\d|\s?o'clock|\s?x\b|\s?uhr\b|\s?h\b|時|点|시|月|日|월|일|年|년)/iu.test(after) && !/^\.\s/.test(after)) continue;
       if (/\d[.\-/]$/.test(before)) continue;
       if (/^[.\-/]\d/.test(after)) continue;
-      if (/^\s?(people|persons|items?|tickets?|days?|weeks?|months?|years?|hours?|minutes?|miles?|km|kg|lbs?|oz|packs?|of|personas|personnes|persone|personen|个人|名|人|명)\b/iu.test(after)) continue;
+      if (/^\s?(people|persons|items?|tickets?|days?|weeks?|months?|years?|hours?|minutes?|miles?|km|kg|lbs?|oz|packs?|personas|personnes|persone|personen|个人|名|人|명)\b/iu.test(after)) continue;
+      // "2 of them" is a count; "5000 of debt" is money.
+      if (/^\s?of\b/iu.test(after) && Number(m[2]) < 100) continue;
     }
     const value = Number(m[2]);
     if (!Number.isFinite(value)) continue;
@@ -316,9 +330,100 @@ function cleanGoalName(s: string, pack: LanguagePack): string | null {
 function baseResult(raw: string, today: string): ParseResult {
   return {
     kind: 'unknown', raw, amount: null, type: 'expense', typeConfidence: 0, categoryId: null, categoryConfidence: 0,
-    note: null, occurredAt: today, dateExplicit: false, goalName: null, targetDate: null, goalId: null,
+    note: null, occurredAt: today, dateExplicit: false, goalName: null, goalKind: 'saving', targetDate: null, goalId: null,
+    reminderText: null, reminderTime: null, reminderRepeat: 'none',
     confidence: 0, needsReview: true, hints: [],
   };
+}
+
+/**
+ * "remind me to pay rent on the 1st at 9am", "every evening at 8 remind me to log receipts".
+ * Pulls out repeat, time and day, and keeps the rest as the reminder text.
+ */
+function parseReminder(text: string, raw: string, ctx: ParseContext, pack: LanguagePack): ParseResult {
+  const rp = pack.reminder;
+  const r = baseResult(raw, ctx.today);
+  r.kind = 'reminder';
+  let rest = text.replace(rp.lead, ' ').replace(/\s+/g, ' ').trim();
+
+  let weekday: number | null = null;
+  let dayOfMonth: number | null = null;
+  let impliedHour: number | null = null;
+  for (const rule of rp.repeat) {
+    const m = rest.match(rule.re);
+    if (!m) continue;
+    r.reminderRepeat = rule.repeat;
+    weekday = rule.weekday ? rule.weekday(m) : null;
+    dayOfMonth = rule.dayOfMonth ? rule.dayOfMonth(m) : null;
+    impliedHour = rule.hour ?? null;
+    rest = (rest.slice(0, m.index) + ' ' + rest.slice((m.index ?? 0) + m[0].length)).replace(/\s+/g, ' ').trim();
+    break;
+  }
+
+  let time: string | null = null;
+  for (const rule of rp.time) {
+    const m = rest.match(rule.re);
+    if (!m) continue;
+    const t = rule.resolve(m);
+    if (!t) continue;
+    // "every evening at 8": the repeat phrase already said which half of the day.
+    if (!t.explicit && impliedHour != null && impliedHour >= 12 && t.hour < 12) t.hour += 12;
+    time = `${pad2(t.hour)}:${pad2(t.minute)}`;
+    rest = (rest.slice(0, m.index) + ' ' + rest.slice((m.index ?? 0) + m[0].length)).replace(/\s+/g, ' ').trim();
+    break;
+  }
+
+  let dated = applyRules(rp.day, rest, ctx.today);
+  if (!dated.date) dated = applyRules(pack.futureDateRules, rest, ctx.today);
+  if (!dated.date) dated = applyRules(rp.dayLate, rest, ctx.today);
+  let date = dated.date;
+  rest = dated.text;
+  if (!time) {
+    if (impliedHour != null) time = `${pad2(impliedHour)}:00`;
+    else { time = '09:00'; r.hints.push(HINT.reminderTime); }
+  }
+  if (!date) {
+    if (weekday != null) date = nextWeekday(weekday, ctx.today, true);
+    else if (dayOfMonth != null) date = nextMonthDay(dayOfMonth, ctx.today);
+    else if (r.reminderRepeat !== 'none') date = ctx.today;
+    else {
+      const later = !ctx.nowTime || time > ctx.nowTime;
+      date = later ? ctx.today : nextDay(ctx.today);
+      r.hints.push(HINT.reminderDate);
+    }
+  } else if (weekday != null && r.reminderRepeat === 'weekly') {
+    date = nextWeekday(weekday, date, true);
+  }
+  r.occurredAt = date;
+  r.dateExplicit = dated.date != null;
+  r.reminderTime = time;
+
+  let body = rest;
+  for (const re of rp.strip) body = body.replace(re, ' ').replace(/\s+/g, ' ').trim();
+  body = body.replace(/^[\s,.;:!?、。，]+|[\s,.;:!?、。，]+$/g, '').trim();
+  const cased = restoreCase(body || null, raw);
+  r.reminderText = cased ? cased.charAt(0).toUpperCase() + cased.slice(1) : null;
+  if (!r.reminderText) r.hints.push(HINT.reminderText);
+  r.confidence = r.reminderText ? 0.85 : 0.3;
+  r.needsReview = !r.reminderText;
+  return r;
+}
+
+function nextDay(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/**
+ * "pay off my credit card in 6 months", "pay down 5000 of debt": a pay-down
+ * goal when the sentence names a debt or a deadline and is not about a past payment.
+ */
+function isDebtGoal(text: string, pack: LanguagePack, today: string): boolean {
+  if (!pack.debtIntent.test(text)) return false;
+  const rest = text.replace(new RegExp(pack.debtIntent.source, 'giu'), ' ');
+  if (pack.goalPastVerbs.test(rest)) return false;
+  return pack.debtWords.test(text) || applyRules(pack.futureDateRules, text, today).date != null;
 }
 
 function parseGoal(afterLead: string, raw: string, ctx: ParseContext, pack: LanguagePack): ParseResult {
@@ -328,7 +433,10 @@ function parseGoal(afterLead: string, raw: string, ctx: ParseContext, pack: Lang
   r.targetDate = future.date;
   const amt = extractAmount(future.text, pack);
   r.amount = amt.amount;
+  const debt = pack.debtIntent.test(afterLead) || pack.debtWords.test(afterLead);
+  if (debt) r.goalKind = 'debt';
   let rest = amt.text.replace(new RegExp(pack.goalIntent.source, 'giu'), ' ').replace(/\s+/g, ' ').trim();
+  if (debt) rest = rest.replace(new RegExp(pack.debtIntent.source, 'giu'), ' ').replace(/\s+/g, ' ').trim().replace(pack.leadingFiller, '').trim();
   const forWord = pack.tokenizer === 'cjk'
     ? new RegExp(`^(.+?)(?:${pack.forWords})`, 'u')
     : new RegExp(`${WB_START}(?:${pack.forWords})\\s+(.+)$`, 'iu');
@@ -339,9 +447,10 @@ function parseGoal(afterLead: string, raw: string, ctx: ParseContext, pack: Lang
     const forMatch = rest.match(forWord);
     namePart = forMatch ? forMatch[1] : rest.replace(new RegExp(`^(?:${pack.forWords})\\s+`, 'iu'), '');
   }
-  r.goalName = cleanGoalName(namePart, pack);
+  r.goalName = restoreCase(cleanGoalName(namePart, pack), raw);
+  if (!r.goalName && debt) r.goalName = null;
   r.confidence = (r.amount ? 0.6 : 0.2) + (r.goalName ? 0.3 : 0) + (r.targetDate ? 0.1 : 0);
-  if (!r.amount) r.hints.push(HINT.goalAmount);
+  if (!r.amount) r.hints.push(debt ? HINT.debtAmount : HINT.goalAmount);
   if (!r.goalName) r.hints.push(HINT.goalName);
   if (!r.targetDate) r.hints.push(HINT.goalNoDate);
   r.needsReview = !r.amount || !r.goalName;
@@ -360,6 +469,9 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
   if (!raw) return baseResult(raw, ctx.today);
   let text = pack.numberWords(normalize(raw, pack));
 
+  // ---- Reminder ----
+  if (pack.reminder.lead.test(text)) return parseReminder(text, raw, ctx, pack);
+
   // ---- Goal creation ----
   const lead = text.match(pack.goalLead);
   if (lead) return parseGoal(text.slice(lead[0].length), raw, ctx, pack);
@@ -371,6 +483,7 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
     const looksLikeGoal = forRe.test(text) || hasDate || !bare;
     if (looksLikeGoal) return parseGoal(text, raw, ctx, pack);
   }
+  if (isDebtGoal(text, pack, ctx.today)) return parseGoal(text, raw, ctx, pack);
 
   // ---- Contribution to an existing goal ----
   if (ctx.goals.some((g) => !g.completed) && pack.contributionVerbs.test(text)) {
@@ -389,7 +502,8 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
       r.amount = amt.amount;
       r.type = 'expense';
       r.typeConfidence = 0.9;
-      r.categoryId = ctx.categories.find((cat) => cat.id === 'savings' && !cat.archived)?.id ?? null;
+      const payCat = goal.kind === 'debt' ? 'debt' : 'savings';
+      r.categoryId = ctx.categories.find((cat) => cat.id === payCat && !cat.archived)?.id ?? null;
       r.categoryConfidence = 0.9;
       r.note = null;
       r.confidence = r.amount ? 0.9 : 0.3;
@@ -547,7 +661,7 @@ export function parseEntries(input: string, ctx: ParseContext): ParseResult[] {
   for (const sentence of sentences) {
     const text = pack.numberWords(normalize(sentence, pack));
     if (!text) continue;
-    const isGoal = pack.goalLead.test(text) || (pack.goalIntent.test(text) && !pack.goalPastVerbs.test(text));
+    const isGoal = pack.reminder.lead.test(text) || pack.goalLead.test(text) || (pack.goalIntent.test(text) && !pack.goalPastVerbs.test(text)) || isDebtGoal(text, pack, ctx.today);
     const isContribution = ctx.goals.some((g) => !g.completed) && pack.contributionVerbs.test(text);
     if (isGoal || isContribution) { results.push(parseInput(sentence, ctx)); continue; }
 

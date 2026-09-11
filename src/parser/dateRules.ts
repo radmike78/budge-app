@@ -249,16 +249,16 @@ function seasonRule(words: string[] | undefined, mmdd: string, b: boolean): Date
 export function relativeFutureRules(w: RelativeFutureWords): DateRule[] {
   const b = w.boundaries ?? true;
   return [
+    { re: w.inDays, resolve: (m, t) => addDays(t, count(m, w.oneWords)) },
+    { re: w.inWeeks, resolve: (m, t) => addDays(t, 7 * count(m, w.oneWords)) },
+    { re: w.inMonths, resolve: (m, t) => addMonths(t, count(m, w.oneWords)) },
+    { re: w.inYears, resolve: (m, t) => addYears(t, count(m, w.oneWords)) },
     wordRule(w.endOfNextYear, (_m, t) => `${fromDateString(t).getFullYear() + 1}-12-31`, b),
     wordRule(w.endOfYear, (_m, t) => `${fromDateString(t).getFullYear()}-12-31`, b),
     wordRule(w.endOfMonth, (_m, t) => endOfMonth(t), b),
     wordRule(w.nextYear, (_m, t) => `${fromDateString(t).getFullYear() + 1}-01-01`, b),
     wordRule(w.nextMonth, (_m, t) => endOfMonth(addMonths(t, 1)), b),
     ...(w.christmas?.length ? [wordRule(w.christmas, (_m, t) => { const y = fromDateString(t).getFullYear(); const c = `${y}-12-25`; return c >= t ? c : `${y + 1}-12-25`; }, b)] : []),
-    { re: w.inDays, resolve: (m, t) => addDays(t, count(m, w.oneWords)) },
-    { re: w.inWeeks, resolve: (m, t) => addDays(t, 7 * count(m, w.oneWords)) },
-    { re: w.inMonths, resolve: (m, t) => addMonths(t, count(m, w.oneWords)) },
-    { re: w.inYears, resolve: (m, t) => addYears(t, count(m, w.oneWords)) },
     ...seasonRule(w.seasons?.spring, '03-20', b),
     ...seasonRule(w.seasons?.summer, '06-21', b),
     ...seasonRule(w.seasons?.fall, '09-22', b),
@@ -286,6 +286,11 @@ export function byMonthRule(months: MonthWords, pre: string[]): DateRule {
 /** "by 2027" */
 export function byYearRule(pre: string[]): DateRule {
   return { re: new RegExp(`${WB_START}(?:${alt(pre)})\\s+(20\\d{2})${WB_END}`, 'iu'), resolve: (m) => `${m[1]}-01-01` };
+}
+
+/** "by end of 2027", "para finales de 2027", "bis ende 2027": last day of that year. */
+export function endOfYearRule(pre: string[]): DateRule {
+  return { re: new RegExp(`${WB_START}(?:${alt(pre)})\\s+(20\\d{2})${WB_END}`, 'iu'), resolve: (m) => `${m[1]}-12-31` };
 }
 
 /** CJK "12月まで" / "12月前" / "12월까지": last day of that month. */

@@ -1,6 +1,8 @@
 import type { TxType } from '@/types';
 
 /** A date rule: regex over normalized text, resolver returns YYYY-MM-DD or null. */
+import type { ReminderPack } from './reminderRules';
+
 export interface DateRule {
   re: RegExp;
   resolve: (m: RegExpMatchArray, todayStr: string) => string | null;
@@ -37,6 +39,10 @@ export interface LanguagePack {
   goalIntent: RegExp;
   /** Past-tense saving verbs that turn a phrase into a contribution rather than a new goal. */
   goalPastVerbs: RegExp;
+  /** Verbs that mean paying down a debt ("pay off", "rembourser", "还清"). Present or future forms only. */
+  debtIntent: RegExp;
+  /** Nouns that name a debt ("credit card", "loan", "借金"). */
+  debtWords: RegExp;
   /** Verbs that mean "add money to a goal". */
   contributionVerbs: RegExp;
   /** Prepositions that introduce the goal name: "to|toward|into|for". Must be a capturing-friendly alternation without groups. */
@@ -58,6 +64,8 @@ export interface LanguagePack {
   contextualStrings: string[];
   /** Separators between several entries in one sentence ("and", ",", "y", "und", "和"). Regex alternatives. */
   listSeparators: string[];
+  /** Spoken reminders: lead phrases, clock times, repeat words, future days. */
+  reminder: ReminderPack;
 }
 
 export type KeywordEntry = { categoryId: string; kind: TxType };

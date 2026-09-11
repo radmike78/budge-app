@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import type { Category, Goal, KeywordMapping, MonthStats, RecurringRule, Settings, Transaction } from '@/types';
+import type { Category, Goal, KeywordMapping, MonthStats, RecurringRule, Reminder, Settings, Transaction } from '@/types';
 import { getDb } from '@/db/database';
 import * as repo from '@/db/repositories';
 import { currentMonthKey, nowIso, today } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { dueOccurrences } from '@/lib/recurring';
 import { learnableWords } from '@/parser';
+import { cancelReminderNotification, nextOccurrence, notificationPermissionState, scheduleReminderNotification, type PermissionState } from '@/lib/reminders';
 import { getLocale, resolveLanguage } from '@/i18n';
 
 interface AppState {
@@ -13,6 +14,9 @@ interface AppState {
   settings: Settings | null;
   categories: Category[];
   goals: Goal[];
+  reminders: Reminder[];
+  /** Last known notification permission; null until checked. */
+  notifications: PermissionState | null;
   rules: RecurringRule[];
   keywords: KeywordMapping[];
   keywordMap: Record<string, string>;
@@ -36,6 +40,12 @@ interface AppState {
   removeGoal: (id: string) => Promise<void>;
   contributeToGoal: (goalId: string, amount: number, opts: { logTransfer: boolean; occurredAt: string; rawInput?: string | null }) => Promise<void>;
 
+  /** Saves and schedules. Returns the permission state so the UI can explain when notifications are off. */
+  addReminder: (input: Omit<Reminder, 'id' | 'createdAt' | 'notificationId'>) => Promise<PermissionState>;
+  removeReminder: (id: string) => Promise<void>;
+  /** Re-schedules what needs it (monthly reminders, ones saved while notifications were off) and drops past one-offs. */
+  rearmReminders: () => Promise<void>;
+
   saveRule: (r: RecurringRule) => Promise<void>;
   removeRule: (id: string) => Promise<void>;
   runRecurringCatchUp: () => Promise<number>;
@@ -51,6 +61,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   ready: false,
   settings: null,
   categories: [],
+  reminders: [],
+  notifications: null,
   goals: [],
   rules: [],
   keywords: [],
@@ -65,12 +77,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().runRecurringCatchUp();
     await get().refresh();
     set({ ready: true });
+    get().rearmReminders().catch(() => {});
   },
 
   refresh: async () => {
     const db = await getDb();
     const month = get().month;
-    const [settings, categories, goals, rules, keywords, recent, stats, lifetime] = await Promise.all([
+    const [settings, categories, goals, rules, keywords, recent, stats, lifetime, reminders] = await Promise.all([
       repo.getSettings(db),
       repo.allCategories(db),
       repo.allGoals(db),
@@ -79,10 +92,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       repo.recentTransactions(db, 10),
       repo.monthStats(db, month),
       repo.lifetimeTotals(db),
+      repo.allReminders(db),
     ]);
     const keywordMap: Record<string, string> = {};
     for (const k of keywords) keywordMap[k.word] = k.categoryId;
-    set({ settings, categories, goals, rules, keywords, keywordMap, recent, stats, lifetime });
+    set({ settings, categories, goals, rules, keywords, keywordMap, recent, stats, lifetime, reminders });
   },
 
   setMonth: async (month) => {
@@ -142,7 +156,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const current = Math.max(0, goal.currentAmount + amount);
     await repo.upsertGoal(db, { ...goal, currentAmount: current, completed: goal.completed || current >= goal.targetAmount });
     if (opts.logTransfer && amount > 0) {
-      const savings = get().categories.find((c) => c.id === 'savings' && !c.archived);
+      const savings = get().categories.find((c) => c.id === (goal.kind === 'debt' ? 'debt' : 'savings') && !c.archived);
       await repo.insertTransaction(db, {
         id: newId(),
         amount,
@@ -157,6 +171,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
     }
     await get().refresh();
+  },
+
+  addReminder: async (input) => {
+    const db = await getDb();
+    const settings = get().settings;
+    const title = getLocale(resolveLanguage(settings?.language)).s.reminderNotificationTitle;
+    const rem: Reminder = { ...input, id: newId(), createdAt: nowIso(), notificationId: null };
+    rem.notificationId = await scheduleReminderNotification(rem, title);
+    await repo.upsertReminder(db, rem);
+    const state = await notificationPermissionState();
+    set({ notifications: state });
+    await get().refresh();
+    return state;
+  },
+
+  removeReminder: async (id) => {
+    const db = await getDb();
+    const rem = get().reminders.find((r) => r.id === id);
+    if (rem) await cancelReminderNotification(rem.notificationId);
+    await repo.deleteReminder(db, id);
+    await get().refresh();
+  },
+
+  rearmReminders: async () => {
+    const db = await getDb();
+    const state = await notificationPermissionState();
+    set({ notifications: state });
+    const title = getLocale(resolveLanguage(get().settings?.language)).s.reminderNotificationTitle;
+    let changed = false;
+    for (const rem of get().reminders) {
+      if (rem.repeat === 'none' && !nextOccurrence(rem)) {
+        await cancelReminderNotification(rem.notificationId);
+        await repo.deleteReminder(db, rem.id);
+        changed = true;
+        continue;
+      }
+      if (state !== 'granted') continue;
+      if (rem.notificationId && rem.repeat !== 'monthly') continue;
+      const id = await scheduleReminderNotification(rem, title);
+      if (id !== rem.notificationId) { await repo.upsertReminder(db, { ...rem, notificationId: id }); changed = true; }
+    }
+    if (changed) await get().refresh();
   },
 
   saveRule: async (r) => {

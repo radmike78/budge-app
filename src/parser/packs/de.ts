@@ -1,6 +1,7 @@
-import { ISO_RULE, byMonthRule, byYearRule, dayMonthRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
+import { ISO_RULE, byMonthRule, byYearRule, endOfYearRule, dayMonthRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
 import { makeNumberWords } from '../numbers';
 import type { LanguagePack } from '../types';
+import { clockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 
 const MONTHS = { names: { januar: 0, jänner: 0, jan: 0, februar: 1, feb: 1, märz: 2, maerz: 2, mär: 2, april: 3, apr: 3, mai: 4, juni: 5, jun: 5, juli: 6, jul: 6, august: 7, aug: 7, september: 8, sep: 8, sept: 8, oktober: 9, okt: 9, november: 10, nov: 10, dezember: 11, dez: 11 } };
 const WEEKDAYS = { names: { sonntag: 0, montag: 1, dienstag: 2, mittwoch: 3, donnerstag: 4, freitag: 5, samstag: 6, sonnabend: 6 }, lastBefore: ['letzten', 'letzte', 'vorigen', 'am letzten', 'vergangenen'], prefixes: ['am', 'diesen', 'den'] };
@@ -90,20 +91,23 @@ export const de: LanguagePack = {
       nextYear: ['nächstes jahr', 'bis nächstes jahr', 'im nächsten jahr', 'bis zum nächsten jahr'],
       nextMonth: ['nächsten monat', 'bis nächsten monat', 'im nächsten monat', 'bis zum nächsten monat'],
       christmas: ['bis weihnachten', 'vor weihnachten', 'zu weihnachten', 'weihnachten'],
-      inDays: /\bin (\d+|einem|ein) tag(?:en)?\b/,
-      inWeeks: /\bin (\d+|einer|eine) wochen?\b/,
-      inMonths: /\bin (\d+|einem|ein) monat(?:en)?\b/,
-      inYears: /\bin (\d+|einem|ein) jahr(?:en)?\b/,
+      inDays: /\b(?:in|innerhalb von|innerhalb|binnen|in den nächsten|in den naechsten) (\d+|einem|ein) tag(?:en)?\b/,
+      inWeeks: /\b(?:in|innerhalb von|innerhalb|binnen|in den nächsten|in den naechsten) (\d+|einer|eine) wochen?\b/,
+      inMonths: /\b(?:in|innerhalb von|innerhalb|binnen|in den nächsten|in den naechsten) (\d+|einem|ein) monat(?:en)?\b/,
+      inYears: /\b(?:in|innerhalb von|innerhalb|binnen|in den nächsten|in den naechsten) (\d+|einem|ein) jahr(?:en)?\b/,
       oneWords: ['einem', 'ein', 'einer', 'eine'],
       seasons: { spring: ['bis zum frühling', 'bis frühling', 'vor dem frühling'], summer: ['bis zum sommer', 'bis sommer', 'vor dem sommer', 'diesen sommer'], fall: ['bis zum herbst', 'bis herbst', 'vor dem herbst'], winter: ['bis zum winter', 'bis winter', 'vor dem winter'] },
     }),
     dayMonthRule(MONTHS, { pre: ['bis zum', 'bis', 'vor dem', 'am', 'zum', 'spätestens am', 'spätestens'], ordinal: '\\.?', future: true }),
-    byMonthRule(MONTHS, ['bis', 'bis ende', 'bis zum', 'im', 'vor', 'spätestens', 'bis spätestens']),
-    byYearRule(['bis', 'vor', 'bis ende', 'im']),
+    endOfYearRule(['bis ende', 'bis zum ende von', 'ende', 'bis spätestens ende']),
+    byMonthRule(MONTHS, ['bis', 'bis ende', 'bis zum', 'im', 'vor', 'spätestens', 'bis spätestens', 'bis nächsten', 'bis nächstes', 'nächsten', 'nächstes']),
+    byYearRule(['bis', 'vor', 'im', 'in']),
   ],
-  goalLead: /^(?:ziel|sparziel|neues ziel|neues sparziel)\s*:?\s*/,
+  goalLead: /^(?:ziel|sparziel|neues ziel|neues sparziel|(?:mach|mache|erstelle|erstell|lege|leg|setze|setz|ich will|ich möchte)(?: mir| uns)?(?: einen| ein| eine)?(?: neuen| neues| neue)? (?:plan|ziel|sparziel)(?: um| für| zum)?)\s*:?\s*/iu,
   goalIntent: /(?<![\p{L}])(?:ich will|ich möchte|ich muss|ich werde|ich würde gerne|ich wollte|wir wollen|wir möchten|sparen|zurücklegen|ansparen|zur seite legen|beiseite legen)(?![\p{L}])/iu,
-  goalPastVerbs: /(?<![\p{L}])(?:gespart|zurückgelegt|eingezahlt|überwiesen|hinzugefügt|gelegt|getan|gepackt|geschoben|gebucht)(?![\p{L}])/iu,
+  goalPastVerbs: /(?<![\p{L}])(?:gespart|zurückgelegt|eingezahlt|überwiesen|hinzugefügt|gelegt|getan|gepackt|geschoben|gebucht|bezahlt|abbezahlt|getilgt)(?![\p{L}])/iu,
+  debtIntent: /(?<![\p{L}])(?:(?:ich will |ich möchte |ich moechte |ich muss |ich werde |wir wollen |wir müssen |wir muessen )?(?:abbezahlen|abzahlen|tilgen|zurückzahlen|zurueckzahlen|abbauen|loswerden|begleichen|schuldenfrei|abstottern))(?![\p{L}])/iu,
+  debtWords: /(?<![\p{L}])(?:schulden|kredit|kreditkarte|darlehen|hypothek|dispo|ratenkredit|studienkredit|autokredit)(?![\p{L}])/iu,
   contributionVerbs: /(?<![\p{L}])(?:hinzugefügt|hinzufügen|gespart|zurückgelegt|eingezahlt|einzahlen|überwiesen|überweisen|gelegt|legen|lege|getan|tun|tue|gepackt|packen|packe|dazu|geschoben|schieben|draufgelegt|drauf gelegt)(?![\p{L}])/iu,
   contributionPreps: 'zu|zum|zur|auf|aufs|in|ins|für|für die|für das|für den|für mein|für meine|für meinen|zu meinem|zu meiner|auf mein|auf meine|auf das|auf die|auf den|in mein|in meine|in meinen|in das|in die|in den',
   forWords: 'für|für die|für das|für den|für einen|für eine|für ein|für mein|für meine|für meinen|für unsere|für unser|für unseren',
@@ -113,5 +117,33 @@ export const de: LanguagePack = {
   trailingFiller: /(?:\s+(?:heute|gestern|für|von|mit|zu|zum|zur|in|im|an|am|auf|bei|der|die|das|den|ein|eine|und|jeder|jede|gesamt|nochmal|auch|bitte|danke|es|dies|ausgegeben|bezahlt|gezahlt|gekauft|gekostet|gegangen|gewesen|geholt|bestellt|etwa|ungefähr|circa|ca|rum|so))+$/,
   noteStrip: [],
   listSeparators: [',', ';', 'und', 'plus', 'dann', 'und dann', 'außerdem', 'und noch', 'sowie'],
+  reminder: {
+    lead: /(?<![\p{L}])(?:(?:kannst du |könntest du |koenntest du |bitte )?(?:erinnere mich|erinner mich|erinnere uns|erinnerung|stell eine erinnerung|stelle eine erinnerung|erstell eine erinnerung|erstelle eine erinnerung|mach eine erinnerung|leg eine erinnerung an|ich brauche eine erinnerung|ich will eine erinnerung|sag mir bescheid|lass mich nicht vergessen|denk für mich dran|erinnere mich bitte|erinner mich bitte))(?![\p{L}])(?:\s+(?:daran|dran|an|zu|dass|um|für))?\s*,?\s*:?/iu,
+    time: [
+      clockRule(['um', 'gegen', 'so gegen', 'ab', 'bis'], { suffix: 'uhr', dayParts: { morgens: 0, früh: 0, frueh: 0, vormittags: 0, mittags: 12, nachmittags: 12, abends: 12, nachts: 12 } }),
+      ...wordTimeRules({ morning: ['morgens', 'am morgen', 'in der früh', 'in der frueh', 'früh', 'frueh', 'vormittags', 'am vormittag', 'gleich morgens'], noon: ['mittags', 'am mittag', 'zur mittagszeit', 'zum mittag'], afternoon: ['nachmittags', 'am nachmittag'], evening: ['abends', 'am abend', 'heute abend', 'nachts', 'vor dem schlafen'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }),
+    ],
+    repeat: [
+      weeklyOnRule(['jeden', 'jede', 'jedes', 'immer am', 'immer'], WEEKDAYS.names, { suffix: ['s'] }),
+      { re: /(?<![\p{L}])(montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags)(?![\p{L}])/iu, repeat: 'weekly', weekday: (m) => ({ montags: 1, dienstags: 2, mittwochs: 3, donnerstags: 4, freitags: 5, samstags: 6, sonntags: 0 } as Record<string, number>)[m[1].toLowerCase()] ?? null },
+      monthlyOnRule(/(?<![\p{L}])(?:am |jeden |immer am )?(\d{1,2}\.?|ersten|monatsersten) (?:jeden|jedes|des|im) monats?(?![\p{L}])/iu, { ersten: 1, monatsersten: 1 }),
+      repeatWords(['jeden morgen', 'jeden vormittag', 'allmorgendlich'], 'daily', 8),
+      repeatWords(['jeden abend', 'jede nacht', 'allabendlich'], 'daily', 20),
+      repeatWords(['jeden nachmittag'], 'daily', 15),
+      repeatWords(['jeden tag', 'täglich', 'taeglich', 'tagtäglich', 'alle tage'], 'daily'),
+      repeatWords(['jede woche', 'wöchentlich', 'woechentlich', 'alle wochen', 'einmal die woche', 'einmal pro woche'], 'weekly'),
+      repeatWords(['jeden monat', 'monatlich', 'alle monate', 'einmal im monat', 'am monatsanfang', 'jeden monatsersten', 'am ersten jeden monats'], 'monthly'),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['übermorgen', 'uebermorgen'], 2),
+      dayWords(['morgen'], 1),
+      dayWords(['heute', 'heute abend', 'heute nachmittag', 'heute nacht', 'heute früh', 'heute frueh'], 0),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['nächsten', 'naechsten', 'nächste', 'naechste', 'kommenden', 'am', 'diesen', 'am nächsten', 'am naechsten', 'am kommenden', 'bis'], nextWords: ['nächst', 'naechst', 'kommend'] }),
+      dayMonthRule(MONTHS, { pre: ['am', 'zum', 'bis zum', 'bis'], ordinal: '\\.?', future: true }),
+    ],
+    dayLate: [futureDayOfMonthRule(/(?<![\p{L}])(?:am|zum|bis zum) (\d{1,2}\.|ersten)(?![\p{N}])(?!\s*(?:uhr|jeden|jedes|des))/iu, { ersten: 1 })],
+    strip: [/^(?:(?:daran|dran|an den|an die|an das|an|zu|dass|um|für|bitte|ich muss|ich soll|ich sollte|dass ich|und)\s*,?\s+)+/iu, /(?:\s+(?:bitte|danke|zu erinnern|erinnern|soll|muss|sollte))+$/iu],
+  },
   contextualStrings: ['Euro', 'Einkauf', 'Miete', 'Gehalt', 'Ziel', 'Netflix', 'Uber', 'Mittagessen'],
 };
