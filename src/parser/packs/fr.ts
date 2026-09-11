@@ -100,5 +100,6 @@ export const fr: LanguagePack = {
   leadingFiller: /^(?:(?:j'ai|je|on|a|ai|aujourd'hui|hier|bon|aussi|encore|dépensé|payé|acheté|dépense|achat|pris|en|de|du|des|pour|par|avec|à|au|aux|le|la|les|un|une|mon|ma|mes|me|se|environ|à peu près|genre|quelque)\s+|(?:j'|d'|l'|qu')(?=\p{L}))+/u,
   trailingFiller: /(?:\s+(?:aujourd'hui|hier|en|de|du|des|pour|par|avec|à|au|le|la|les|un|une|et|chaque|total|encore|aussi|s'il te plaît|merci|ça|ce|cela|environ|à peu près))+$/u,
   noteStrip: [],
+  listSeparators: [',', ';', 'et', 'plus', 'puis', 'et puis', 'et aussi', 'ensuite'],
   contextualStrings: ['euros', 'courses', 'loyer', 'salaire', 'objectif', 'Netflix', 'Uber', 'resto'],
 };

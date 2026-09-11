@@ -107,6 +107,12 @@ export const fr: LocaleDef = {
     toastGoalSet: (amount, name, by) => `Objectif créé : ${amount} pour ${name}${by ? ` avant le ${by}` : ''}.`,
     toastAdded: (amount, goal) => `${amount} ajoutés à ${goal}.`,
     toastLogged: (amount, isIncome, category) => `${amount} ${isIncome ? 'reçus' : 'dépensés'} · ${category}.`,
+    // several entries in one go
+    multiTitle: (n: number) => `${n} entrées`,
+    multiIntro: 'Vérifiez chacune, puis enregistrez-les ensemble. Touchez une catégorie pour la changer.',
+    saveAll: 'Tout enregistrer',
+    entryRemoved: 'Retirée. Rien n’a été enregistré.',
+    toastLoggedMany: (n: number, out: string | null, inc: string | null) => `${n} entrées enregistrées${out ? ` · ${out} dépensés` : ''}${inc ? ` · ${inc} reçus` : ''}.`,
     toward: (goal) => `Pour ${goal}`,
     thisMonth: 'Ce mois-ci',
     goals: 'Objectifs',

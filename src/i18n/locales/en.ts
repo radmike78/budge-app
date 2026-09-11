@@ -117,6 +117,12 @@ export const en = {
     toastGoalSet: (amount: string, name: string, by: string | null) => `Goal set: ${amount} for ${name}${by ? ` by ${by}` : ''}.`,
     toastAdded: (amount: string, goal: string) => `Added ${amount} to ${goal}.`,
     toastLogged: (amount: string, isIncome: boolean, category: string) => `Logged ${amount} ${isIncome ? 'in' : 'out'} · ${category}.`,
+    // several entries in one go
+    multiTitle: (n: number) => `${n} entries`,
+    multiIntro: 'Check each one, then save them together. Tap a category to change it.',
+    saveAll: 'Save all',
+    entryRemoved: 'Removed. Nothing was saved.',
+    toastLoggedMany: (n: number, out: string | null, inc: string | null) => `Logged ${n} entries${out ? ` · ${out} out` : ''}${inc ? ` · ${inc} in` : ''}.`,
     toward: (goal: string) => `Toward ${goal}`,
     // home
     thisMonth: 'This month',

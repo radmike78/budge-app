@@ -107,6 +107,12 @@ export const ko: LocaleDef = {
     toastGoalSet: (amount, name, by) => `목표 설정: ${name} ${amount}${by ? ` (${by})` : ''}.`,
     toastAdded: (amount, goal) => `${goal}에 ${amount}를 추가했어요.`,
     toastLogged: (amount, isIncome, category) => `${isIncome ? '수입' : '지출'} ${amount} 기록됨 · ${category}.`,
+    // several entries in one go
+    multiTitle: (n: number) => `${n}개 항목`,
+    multiIntro: '하나씩 확인한 뒤 함께 저장하세요. 카테고리를 눌러서 바꿀 수 있어요.',
+    saveAll: '모두 저장',
+    entryRemoved: '지웠어요. 아무것도 저장되지 않았어요.',
+    toastLoggedMany: (n: number, out: string | null, inc: string | null) => `${n}개 항목 기록됨${out ? ` · 지출 ${out}` : ''}${inc ? ` · 수입 ${inc}` : ''}.`,
     toward: (goal) => `${goal}으로`,
     thisMonth: '이번 달',
     goals: '목표',

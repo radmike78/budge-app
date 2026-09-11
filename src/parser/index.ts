@@ -138,8 +138,11 @@ interface AmountExtraction {
  * Finds the money amount. Prefers numbers with a currency marker ($12, 12 dollars, 12块),
  * then the first bare number. Ordinals, times and percentages are ignored.
  */
-export function extractAmount(text: string, pack: LanguagePack): AmountExtraction {
-  const candidates: { value: number; start: number; end: number; marked: boolean }[] = [];
+interface AmountCandidate { value: number; start: number; end: number; marked: boolean }
+
+/** Every money-looking number in the text, in order, with its span. */
+export function findAmounts(text: string, pack: LanguagePack): AmountCandidate[] {
+  const candidates: AmountCandidate[] = [];
   const marker = pack.currencyMarkers.source;
   const re = new RegExp(`(?:(${marker})\\s?)?(\\d+(?:\\.\\d+)?)(?:\\s?(${marker}))?`, 'giu');
   let m: RegExpExecArray | null;
@@ -158,6 +161,11 @@ export function extractAmount(text: string, pack: LanguagePack): AmountExtractio
     if (!Number.isFinite(value)) continue;
     candidates.push({ value, start: m.index, end: m.index + full.length, marked });
   }
+  return candidates;
+}
+
+export function extractAmount(text: string, pack: LanguagePack): AmountExtraction {
+  const candidates = findAmounts(text, pack);
   if (candidates.length === 0) return { amount: null, text, confidence: 0, multiple: false };
   const markedOnes = candidates.filter((c) => c.marked);
   const chosen = markedOnes[0] ?? candidates[0];
@@ -259,6 +267,20 @@ export function deriveNote(leftover: string, pack: LanguagePack): string | null 
   s = s.replace(/^[\-–—.]+|[\-–—.]+$/g, '').trim();
   if (!s) return null;
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Notes are derived from lowercased text. When the same words appear in what
+ * the user actually typed or said, keep their casing ("Fleming's Steakhouse",
+ * not "Fleming's steakhouse") so the place reads back the way they said it.
+ */
+export function restoreCase(note: string | null, raw: string): string | null {
+  if (!note) return note;
+  const source = raw.replace(/’/g, "'").replace(/[“”"]/g, '').replace(/\s+/g, ' ');
+  const idx = source.toLowerCase().indexOf(note.toLowerCase());
+  if (idx < 0) return note;
+  const found = source.slice(idx, idx + note.length);
+  return found.charAt(0).toUpperCase() + found.slice(1);
 }
 
 function findGoal(name: string, goals: Goal[], c: Compiled): Goal | null {
@@ -426,7 +448,7 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
 
   let leftover = text;
   if (typeGuess.verb) leftover = leftover.replace(typeGuess.verb, ' ');
-  r.note = deriveNote(leftover, pack);
+  r.note = restoreCase(deriveNote(leftover, pack), raw);
 
   if (!r.amount) {
     r.confidence = 0;
@@ -440,6 +462,126 @@ export function parseInput(input: string, ctx: ParseContext): ParseResult {
   r.confidence = Math.max(0, Math.min(1, r.confidence));
   r.needsReview = !r.amount || r.confidence < 0.55;
   return r;
+}
+
+/**
+ * Splits "spent $67.99 at Macy's and $121.53 at Fleming's" into one segment per
+ * amount, cutting at a list separator between two amounts. Space-separated
+ * languages cut at the last separator before the next amount; CJK languages
+ * (where whitespace itself separates phrases) cut at the first one. Returns
+ * the whole text as a single segment when there is nothing to split.
+ */
+export function splitEntries(text: string, pack: LanguagePack): string[] {
+  const all = findAmounts(text, pack);
+  const marked = all.filter((a) => a.marked);
+  const amounts = marked.length >= 2 ? marked : all;
+  if (amounts.length < 2) return [text];
+  const alt = [...pack.listSeparators].sort((a, b) => b.length - a.length).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const cjk = pack.tokenizer === 'cjk';
+  const sepRe = cjk
+    ? new RegExp(`(?:${alt}|\\s+)`, 'gu')
+    : new RegExp(`(?:\\s*[,;]\\s*|\\s+(?:${alt})\\s+)`, 'giu');
+  const cuts: { start: number; end: number }[] = [];
+  for (let i = 0; i + 1 < amounts.length; i += 1) {
+    const from = amounts[i].end;
+    const to = amounts[i + 1].start;
+    const between = text.slice(from, to);
+    let chosen: RegExpExecArray | null = null;
+    let m: RegExpExecArray | null;
+    sepRe.lastIndex = 0;
+    while ((m = sepRe.exec(between)) !== null) {
+      if (m[0].length === 0) { sepRe.lastIndex += 1; continue; }
+      chosen = m;
+      if (cjk) break;
+    }
+    if (chosen) cuts.push({ start: from + chosen.index, end: from + chosen.index + chosen[0].length });
+  }
+  if (cuts.length === 0) return [text];
+  const out: string[] = [];
+  let pos = 0;
+  for (const c of cuts) { out.push(text.slice(pos, c.start).trim()); pos = c.end; }
+  out.push(text.slice(pos).trim());
+  return out.filter(Boolean);
+}
+
+const ABBREV = /(?:\b(?:jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|mr|mrs|ms|dr|st|vs|approx|ca|etc|ene|abr|ago|dic|janv|févr|fevr|juil|déc|gen|mag|giu|lug|set|sett|ott|okt|dez|nr|ca|bzw|z\.b|u\.a)|\b\p{L})\.$/iu;
+
+/** Splits free text into sentences on . ! ? and CJK equivalents, keeping decimals and abbreviations intact. */
+export function splitSentences(raw: string): string[] {
+  const parts: string[] = [];
+  let buf = '';
+  const chars = [...raw];
+  for (let i = 0; i < chars.length; i += 1) {
+    const ch = chars[i];
+    buf += ch;
+    const next = chars[i + 1] ?? '';
+    if (ch === '\n') { parts.push(buf); buf = ''; continue; }
+    if (ch === '。' || ch === '！' || ch === '？') { parts.push(buf); buf = ''; continue; }
+    if ((ch === '.' || ch === '!' || ch === '?') && (next === '' || /\s/.test(next))) {
+      const prev = chars[i - 1] ?? '';
+      if (ch === '.' && (/\d/.test(prev) && /\d/.test(chars[i + 2] ?? '') || ABBREV.test(buf.trim()))) continue;
+      parts.push(buf);
+      buf = '';
+    }
+  }
+  if (buf.trim()) parts.push(buf);
+  return parts.map((p) => p.trim()).filter(Boolean);
+}
+
+/**
+ * Parses free text that may describe several entries, in one sentence or
+ * many. Goals and contributions are never split. A date phrase and an
+ * income/expense verb carry forward to later entries that have none
+ * ("yesterday I spent 12 on lunch and 40 on gas. Then $9 at Zizzle.").
+ */
+export function parseEntries(input: string, ctx: ParseContext): ParseResult[] {
+  const pack = getPack(ctx.language);
+  const raw = input.trim();
+  if (!raw) return [baseResult(raw, ctx.today)];
+  const sentences = splitSentences(raw);
+  const results: ParseResult[] = [];
+  let sharedDate: string | null = null;
+  let sharedType: { type: TxType; confidence: number } | null = null;
+  let multi = false;
+
+  for (const sentence of sentences) {
+    const text = pack.numberWords(normalize(sentence, pack));
+    if (!text) continue;
+    const isGoal = pack.goalLead.test(text) || (pack.goalIntent.test(text) && !pack.goalPastVerbs.test(text));
+    const isContribution = ctx.goals.some((g) => !g.completed) && pack.contributionVerbs.test(text);
+    if (isGoal || isContribution) { results.push(parseInput(sentence, ctx)); continue; }
+
+    const dated = applyRules(pack.pastDateRules, text, ctx.today);
+    const segments = splitEntries(dated.text, pack);
+    if (segments.length > 1 || sentences.length > 1) multi = true;
+    const group = segments.length > 1
+      ? segments.map((seg) => { const r = parseInput(seg, ctx); r.note = restoreCase(r.note, sentence); return r; })
+      : [parseInput(sentence, ctx)];
+    if (dated.date) sharedDate = dated.date;
+    const lead = group[0];
+    if (lead.typeConfidence >= 0.8) sharedType = { type: lead.type, confidence: lead.typeConfidence };
+
+    for (const r of group) {
+      if (sharedDate && !r.dateExplicit) { r.occurredAt = sharedDate; r.dateExplicit = true; }
+      if (sharedType && r.typeConfidence <= 0.6) {
+        if (r.type !== sharedType.type) {
+          r.type = sharedType.type;
+          const fallback = r.type === 'income' ? FALLBACK_INCOME_CATEGORY_ID : FALLBACK_EXPENSE_CATEGORY_ID;
+          if (r.categoryConfidence < 0.5) r.categoryId = ctx.categories.some((c) => c.id === fallback && !c.archived) ? fallback : null;
+        }
+        r.typeConfidence = 0.8;
+        r.hints = r.hints.filter((h) => h !== HINT.assumedExpense && h !== HINT.assumedIncome);
+      }
+      if (segments.length > 1) r.hints = r.hints.filter((h) => h !== HINT.multipleNumbers);
+      if (r.amount != null) {
+        r.confidence = Math.min(0.95, 0.5 * r.typeConfidence + 0.5 * Math.max(r.categoryConfidence, 0.35) + 0.15);
+        r.needsReview = r.confidence < 0.55;
+      }
+      results.push(r);
+    }
+  }
+  if (!multi && results.length === 1) return [parseInput(raw, ctx)];
+  return results.length ? results : [baseResult(raw, ctx.today)];
 }
 
 /**

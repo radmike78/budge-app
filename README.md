@@ -104,6 +104,8 @@ npm run icons     # regenerate assets/*.png from scripts/generate-icons.js
 - Type: income verbs (`got paid`, `earned`, `refund`…) vs expense verbs (`spent`, `paid`, `bought`…). If neither, the category decides; if nothing, expense with a hint.
 - Category: learned words (from user corrections) → custom category names → the pack's keyword dictionary, longest phrase first (`gas bill` beats `gas`; `电影` beats `电`).
 - Goals: `goal: …`, `save X for Y by Z`, `I want to save…`. Contributions to an existing goal: `add 100 to the trip goal`, `put 50 toward japan`.
+- Several expenses at once: `I spent $67.99 at Macy's and $121.53 at Fleming's Steakhouse` or `Lunch was 12. Then 40 on gas and 4 for coffee.` are split into one entry each (on `and`, commas, `then`, sentence breaks, and their equivalents in every pack). A verb or date said once carries across the list. The confirmation card shows one editable row per entry and saves them together.
+- Unknown places still work: `Spent $32 at Joe's` becomes a $32 expense with the note "Joe's" in *Other*, with a hint to tap the category and change it. The correction is learned for next time.
 
 Every parse produces a confidence and plain hints ("Not sure about the category. Tap it to change."). Nothing is saved without the confirmation card.
 
