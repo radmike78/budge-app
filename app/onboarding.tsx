@@ -6,7 +6,7 @@ import { spacing, useTheme } from '@/theme';
 import { CURRENCIES, parseMoneyInput } from '@/lib/money';
 import { LANGUAGE_OPTIONS, deviceLanguage, getLocale, useLocale, useT } from '@/i18n';
 import { Sheet } from '@/components/pickers';
-import { Button, Card, Field, ListItem, Row, Text } from '@/components/ui';
+import { Button, Card, CONTENT_MAX_WIDTH, Field, ListItem, Row, Text } from '@/components/ui';
 
 const PAGES = ['why', 'setup', 'how'] as const;
 
@@ -44,20 +44,25 @@ export default function Onboarding() {
     ? LANGUAGE_OPTIONS.find((o) => o.code === settings.language)?.name ?? settings.language
     : `${t.systemLanguage} (${getLocale(deviceLanguage()).name})`;
 
+  // Pages centre their content vertically inside the list's measured height.
+  const [pageHeight, setPageHeight] = useState(0);
   const renderPage = (key: string) => {
     if (key === 'why') {
       return (
-        <View style={{ width, padding: spacing.xl, justifyContent: 'center', flex: 1 }}>
+        <View style={{ width, minHeight: pageHeight, padding: spacing.xl, justifyContent: 'center' }}>
+        <View style={{ width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
           <Text variant="display">{t.onboardHeadline}</Text>
           <Text variant="muted" style={{ marginTop: spacing.xl, fontSize: 17 }}>{t.onboardBody}</Text>
           <View style={{ marginTop: spacing.xxl }}><Button title={t.next} onPress={() => go(1)} /></View>
           <View style={{ marginTop: spacing.md, alignItems: 'center' }}><Button tone="ghost" small title={`${t.language}: ${languageName}`} onPress={() => setShowLanguage(true)} /></View>
         </View>
+        </View>
       );
     }
     if (key === 'setup') {
       return (
-        <View style={{ width, padding: spacing.xl, justifyContent: 'center', flex: 1 }}>
+        <View style={{ width, minHeight: pageHeight, padding: spacing.xl, justifyContent: 'center' }}>
+        <View style={{ width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
           <Text variant="title">{t.quickSetup}</Text>
           <Text variant="muted" style={{ marginTop: spacing.sm, marginBottom: spacing.xl }}>{t.quickSetupBody}</Text>
           <Text variant="label" style={{ marginBottom: 6 }}>{t.language}</Text>
@@ -74,10 +79,12 @@ export default function Onboarding() {
             <Button title={t.next} onPress={() => go(2)} style={{ flex: 1 }} />
           </Row>
         </View>
+        </View>
       );
     }
     return (
-      <View style={{ width, padding: spacing.xl, justifyContent: 'center', flex: 1 }}>
+      <View style={{ width, minHeight: pageHeight, padding: spacing.xl, justifyContent: 'center' }}>
+        <View style={{ width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>
         <Text variant="title">{t.justSayIt}</Text>
         <Card style={{ marginTop: spacing.lg }}>
           {t.examples.map((e, i) => <Text key={e} variant="body" style={{ marginTop: i === 0 ? 0 : spacing.sm }}>{e}</Text>)}
@@ -87,6 +94,7 @@ export default function Onboarding() {
           <Button tone="ghost" title={t.back} onPress={() => go(1)} />
           <Button title={t.start} onPress={finish} style={{ flex: 1 }} />
         </Row>
+      </View>
       </View>
     );
   };
@@ -101,6 +109,8 @@ export default function Onboarding() {
         pagingEnabled
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
+        style={{ flex: 1 }}
+        onLayout={(e) => setPageHeight(e.nativeEvent.layout.height)}
         renderItem={({ item }) => renderPage(item)}
         getItemLayout={(_d, index) => ({ length: width, offset: width * index, index })}
         keyboardShouldPersistTaps="handled"

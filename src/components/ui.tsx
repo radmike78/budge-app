@@ -13,6 +13,7 @@ import {
   type TextProps,
   type TextStyle,
   type ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, spacing, useTheme } from '@/theme';
@@ -40,6 +41,15 @@ export function Text({ variant = 'body', color, style, ...rest }: TextProps & { 
 
 // ---------- Layout ----------
 
+/** Widest a column of cards should get: on tablets the content is centred at this width. */
+export const CONTENT_MAX_WIDTH = 720;
+
+/** True on tablets and desktop-sized windows, where a sheet should not span the whole width. */
+export function useIsWide(): boolean {
+  const { width } = useWindowDimensions();
+  return width >= 700;
+}
+
 export function Screen({ children, scroll = true, padded = true, style, contentStyle, keyboard }: {
   children: React.ReactNode;
   scroll?: boolean;
@@ -52,13 +62,15 @@ export function Screen({ children, scroll = true, padded = true, style, contentS
   const insets = useSafeAreaInsets();
   const base: ViewStyle = { flex: 1, backgroundColor: colors.bg };
   const pad: ViewStyle = padded ? { paddingHorizontal: spacing.lg } : {};
+  // Cards stay a readable width on tablets: the column is capped and centred.
+  const column: ViewStyle = { width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' };
   if (!scroll) {
-    return <View style={[base, pad, { paddingBottom: insets.bottom }, style]}>{children}</View>;
+    return <View style={[base, pad, column, { paddingBottom: insets.bottom }, style]}>{children}</View>;
   }
   return (
     <ScrollView
       style={[base, style]}
-      contentContainerStyle={[pad, { paddingBottom: insets.bottom + spacing.xxl, paddingTop: spacing.sm }, contentStyle]}
+      contentContainerStyle={[pad, column, { paddingBottom: insets.bottom + spacing.xxl, paddingTop: spacing.sm }, contentStyle]}
       keyboardShouldPersistTaps={keyboard ? 'handled' : 'never'}
       keyboardDismissMode="on-drag"
     >
