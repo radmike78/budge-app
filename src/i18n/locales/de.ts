@@ -149,7 +149,7 @@ export const de: LocaleDef = {
     reminderNotificationTitle: 'OnlyBudget-Erinnerung',
     // statement import
     importStatement: 'Kontoauszug importieren',
-    importStatementSub: 'Ein Konto- oder Kartenauszug oder eine Kreditauskunft als PDF. Bleibt auf deinem Handy.',
+    importStatementSub: 'Ein Konto- oder Kartenauszug oder eine Kreditauskunft als PDF. Wird auf deinem Handy gelesen und dann gelöscht. Nur die Einträge, die du bestätigst, bleiben, nie Konto- oder Kartennummern.',
     importIntro: 'Wähl ein PDF von deiner Bank, deiner Karte oder der Auskunftei. OnlyBudget liest es auf diesem Gerät, ordnet jede Zeile einer Kategorie zu und zeigt dir alles, bevor etwas gespeichert wird. Nichts wird hochgeladen.',
     pickPdf: 'PDF wählen',
     readingPdf: 'Datei wird gelesen …',

@@ -149,7 +149,7 @@ export const ko: LocaleDef = {
     reminderNotificationTitle: 'OnlyBudget 알림',
     // statement import
     importStatement: '명세서 가져오기',
-    importStatementSub: '은행·카드 명세서나 신용 보고서 PDF. 휴대폰 안에만 남아요.',
+    importStatementSub: '은행·카드 명세서나 신용 보고서 PDF. 휴대폰에서 읽은 뒤 바로 삭제해요. 승인한 항목만 남고 계좌번호나 카드번호는 절대 저장하지 않아요.',
     importIntro: '은행, 카드사, 신용평가사에서 받은 PDF를 고르세요. OnlyBudget이 이 기기에서 읽고, 각 줄을 카테고리에 넣고, 저장 전에 전부 보여줘요. 아무것도 업로드하지 않아요.',
     pickPdf: 'PDF 선택',
     readingPdf: '파일 읽는 중…',

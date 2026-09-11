@@ -149,7 +149,7 @@ export const fr: LocaleDef = {
     reminderNotificationTitle: 'Rappel OnlyBudget',
     // statement import
     importStatement: 'Importer un relevé',
-    importStatementSub: 'Un relevé bancaire ou de carte, ou un rapport de crédit, en PDF. Il reste sur votre téléphone.',
+    importStatementSub: 'Un relevé bancaire ou de carte, ou un rapport de crédit, en PDF. Il est lu sur votre téléphone puis supprimé. Seules les entrées que vous approuvez sont conservées, jamais les numéros de compte ou de carte.',
     importIntro: 'Choisissez un PDF de votre banque, de votre carte ou de l’agence de crédit. OnlyBudget le lit sur cet appareil, classe chaque ligne dans une catégorie et vous montre tout avant d’enregistrer. Rien n’est envoyé.',
     pickPdf: 'Choisir un PDF',
     readingPdf: 'Lecture du fichier…',

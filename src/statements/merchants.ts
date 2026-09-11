@@ -45,6 +45,9 @@ const NOISE = [
   /\b(?:sq|tst|sp|py|pp|paypal|ppl|dd|amzn mktp|amazon\.com)\s?\*\s?/gi,
   /\b(us|usa|ca|wa|ny|tx|fl|il|az|co|ga|ma|or|pa|nj|nc|va|mi|oh|mn|wi|tn|md|ut|nv|mo|in|ky|la|sc|al|ok|ct|ia|ms|ar|ks|ne|nm|id|hi|me|nh|ri|mt|de|sd|nd|ak|vt|wy|wv|dc)\b\s*$/i,
   /\b\d{3}[-. ]\d{3}[-. ]\d{4}\b/g,
+  // Account and card fragments: masked groups, "ending in 1234", and any number of 3+ digits.
+  /\b(?:ending(?: in)?|last four|acct|account|card)\s*(?:number|#|no\.?)?\s*:?\s*[x*•·]*\s?\d{2,}\b/gi,
+  /\b\d{3,}\b/g,
   // A bare MMDD like "0105" that some banks print after CHECKCARD.
   /\b(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\b/g,
   /\b(direct dep(?:osit)?|dir dep)\b/gi,

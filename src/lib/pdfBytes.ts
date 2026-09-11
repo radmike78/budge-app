@@ -4,7 +4,7 @@
  */
 import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 
 export const MAX_PDF_BYTES = 25 * 1024 * 1024;
 export const MAX_PDF_PAGES = 300;
@@ -31,13 +31,62 @@ export async function pickPdf(): Promise<PickedPdf | null> {
   if (Platform.OS === 'web') {
     const webFile = (asset as { file?: Blob }).file;
     buffer = webFile ? await webFile.arrayBuffer() : await (await fetch(asset.uri)).arrayBuffer();
+    if (asset.uri.startsWith('blob:')) { try { URL.revokeObjectURL(asset.uri); } catch { /* already gone */ } }
   } else {
-    buffer = await new File(asset.uri).arrayBuffer();
+    // The picker copies the PDF into the app cache. Read it once, then delete that copy
+    // straight away: the statement itself is never kept, only the entries the user approves.
+    const file = new File(asset.uri);
+    try {
+      buffer = await file.arrayBuffer();
+    } finally {
+      deleteQuietly(file);
+    }
   }
   if (buffer.byteLength > MAX_PDF_BYTES) throw new PdfTooLargeError();
   const bytes = new Uint8Array(buffer);
   if (!looksLikePdf(bytes)) throw new Error('Not a PDF');
   return { name: asset.name, bytes };
+}
+
+function deleteQuietly(entry: File | Directory): void {
+  try {
+    if (entry.exists) entry.delete();
+  } catch {
+    // Best effort; the sweep on next launch tries again.
+  }
+}
+
+/**
+ * Removes any PDF (or picker copy) left in the app cache, for example after the
+ * app was closed in the middle of an import. Runs at every launch.
+ */
+export async function sweepImportCache(): Promise<number> {
+  if (Platform.OS === 'web') return 0;
+  let removed = 0;
+  const walk = (dir: Directory, depth: number) => {
+    if (depth > 3) return;
+    let entries: (Directory | File)[] = [];
+    try {
+      entries = dir.list();
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const name = entry.name.toLowerCase();
+      if (entry instanceof Directory) {
+        if (name === 'documentpicker') { deleteQuietly(entry); removed += 1; } else walk(entry, depth + 1);
+      } else if (name.endsWith('.pdf')) {
+        deleteQuietly(entry);
+        removed += 1;
+      }
+    }
+  };
+  try {
+    walk(Paths.cache, 0);
+  } catch {
+    // nothing to sweep
+  }
+  return removed;
 }
 
 /** "%PDF-" within the first kilobyte (some writers add a byte-order mark or a comment first). */

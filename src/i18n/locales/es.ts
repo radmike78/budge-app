@@ -149,7 +149,7 @@ export const es: LocaleDef = {
     reminderNotificationTitle: 'Recordatorio de OnlyBudget',
     // statement import
     importStatement: 'Importar un extracto',
-    importStatementSub: 'Un extracto bancario o de tarjeta, o un informe de crédito, en PDF. Se queda en tu teléfono.',
+    importStatementSub: 'Un extracto bancario o de tarjeta, o un informe de crédito, en PDF. Se lee en tu teléfono y luego se borra. Solo se guardan las entradas que apruebes, nunca números de cuenta ni de tarjeta.',
     importIntro: 'Elige un PDF de tu banco, tu tarjeta o la agencia de crédito. OnlyBudget lo lee en este dispositivo, pone cada línea en una categoría y te lo muestra todo antes de guardar. No se sube nada.',
     pickPdf: 'Elegir un PDF',
     readingPdf: 'Leyendo el archivo…',

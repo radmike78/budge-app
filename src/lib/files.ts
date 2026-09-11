@@ -45,7 +45,13 @@ export async function pickTextFile(): Promise<{ name: string; text: string } | n
     return { name: asset.name, text };
   }
   const file = new File(asset.uri);
-  const text = await file.text();
+  let text: string;
+  try {
+    text = await file.text();
+  } finally {
+    // The picker's cached copy is not kept.
+    try { if (file.exists) file.delete(); } catch { /* best effort */ }
+  }
   return { name: asset.name, text };
 }
 
