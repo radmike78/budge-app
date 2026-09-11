@@ -159,7 +159,7 @@ export const en = {
     reminderNotificationTitle: 'OnlyBudget reminder',
     // statement import
     importStatement: 'Import a statement',
-    importStatementSub: 'A bank or card statement, or a credit report, as a PDF. It stays on your phone.',
+    importStatementSub: 'A bank or card statement, or a credit report, as a PDF. It is read on your phone and then deleted. Only the entries you approve are kept, never account or card numbers.',
     importIntro: 'Pick a PDF from your bank, card issuer or credit bureau. OnlyBudget reads it on this device, sorts each line into a category, and shows you everything before saving. Nothing is uploaded.',
     pickPdf: 'Choose a PDF',
     readingPdf: 'Reading the file…',

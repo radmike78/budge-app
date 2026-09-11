@@ -36,7 +36,6 @@ export default function ImportScreen() {
   const extractor = useRef<PdfExtractorHandle>(null);
 
   const [stage, setStage] = useState<Stage>('idle');
-  const [fileName, setFileName] = useState('');
   const [parsed, setParsed] = useState<ParsedStatement | null>(null);
   const [lines, setLines] = useState<StatementLine[]>([]);
   const [tradelines, setTradelines] = useState<Tradeline[]>([]);
@@ -49,9 +48,14 @@ export default function ImportScreen() {
     try {
       const picked = await pickPdf();
       if (!picked) return;
-      setFileName(picked.name);
       setStage('reading');
-      const { items } = await extractor.current!.extract(picked.bytes);
+      let items: Awaited<ReturnType<PdfExtractorHandle['extract']>>['items'];
+      try {
+        items = (await extractor.current!.extract(picked.bytes)).items;
+      } finally {
+        // The file itself is never kept: wipe the bytes as soon as the text is out.
+        picked.bytes.fill(0);
+      }
       const rows = rowsFromItems(items);
       const ctx = { categories, goals, keywordMap, today: today(), language };
       const result = parseStatement(rows, ctx, { language, today: today(), knownFingerprints: fingerprints });
@@ -90,7 +94,7 @@ export default function ImportScreen() {
         const original = parsed.lines.find((o) => o.fingerprint === l.fingerprint);
         if (original && l.categoryId && l.categoryId !== original.categoryId) await learnCategory(l.description, l.categoryId);
       }
-      const n = await importStatement(selected, { kind: parsed.kind === 'card' ? 'card' : 'bank', fileName, periodStart: parsed.period?.start ?? null, periodEnd: parsed.period?.end ?? null });
+      const n = await importStatement(selected, { kind: parsed.kind === 'card' ? 'card' : 'bank', periodStart: parsed.period?.start ?? null, periodEnd: parsed.period?.end ?? null });
       let message = t.importDone(n);
       if (parsed.kind === 'card' && saveCard && parsed.tradelines.length) {
         await mergeTradelines(parsed.tradelines);
@@ -160,7 +164,6 @@ export default function ImportScreen() {
         <>
           <SectionTitle>{t.importKind[parsed.kind] ?? t.importKind.unknown}</SectionTitle>
           <Text variant="muted">
-            {parsed.account ? `${parsed.account} · ` : ''}
             {parsed.period ? t.importPeriod(longDate(parsed.period.start, today(), fmt), longDate(parsed.period.end, today(), fmt)) : ''} {t.importLinesFound(lines.length)}
           </Text>
           {parsed.warnings.filter((w) => t.importWarnings[w]).map((w) => (

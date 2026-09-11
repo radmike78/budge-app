@@ -149,7 +149,7 @@ export const zh: LocaleDef = {
     reminderNotificationTitle: 'OnlyBudget 提醒',
     // statement import
     importStatement: '导入账单',
-    importStatementSub: '银行或信用卡账单，或信用报告的 PDF。只保存在你的手机上。',
+    importStatementSub: '银行或信用卡账单，或信用报告的 PDF。在手机上读取后立即删除。只保留你确认的记录，绝不保存账号或卡号。',
     importIntro: '选择银行、信用卡或征信机构的 PDF。OnlyBudget 在本机读取，把每一行归到分类里，并在保存前全部展示给你。不会上传任何内容。',
     pickPdf: '选择 PDF',
     readingPdf: '正在读取文件…',

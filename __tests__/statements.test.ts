@@ -132,7 +132,7 @@ describe('bank statement', () => {
   it('is recognised with its period and account', () => {
     expect(p.kind).toBe('bank');
     expect(p.period).toEqual({ start: '2025-12-20', end: '2026-01-19' });
-    expect(p.account).toBe('····4821');
+    expect(JSON.stringify(p)).not.toMatch(/4821/);
   });
   it('separates deposits from withdrawals using the section headings and balances', () => {
     const byDesc = Object.fromEntries([...p.lines].reverse().map((l) => [l.description, l]));
@@ -140,7 +140,7 @@ describe('bank statement', () => {
     expect(byDesc['Wm Supercenter Seattle']).toMatchObject({ direction: 'out', categoryId: 'groceries', amount: 86.21 });
     expect(byDesc['Netflix']).toMatchObject({ categoryId: 'subscriptions' });
     expect(byDesc['Online Transfer To Savings']).toMatchObject({ kind: 'transfer', include: false });
-    expect(byDesc['Chase Credit Crd Autopay 4567']).toMatchObject({ categoryId: 'debt' });
+    expect(byDesc['Chase Credit Crd Autopay']).toMatchObject({ categoryId: 'debt' });
     expect(byDesc['Shell Oil Redmond']).toMatchObject({ categoryId: 'transport' });
     expect(byDesc['Blue Bottle Cof Seattle']).toMatchObject({ categoryId: 'dining' });
     expect(byDesc['Pg&e Online Payment']).toMatchObject({ categoryId: 'utilities' });
@@ -165,7 +165,7 @@ describe('card statement', () => {
   it('is recognised, with the card as a tradeline', () => {
     expect(p.kind).toBe('card');
     expect(p.period).toEqual({ start: '2025-12-15', end: '2026-01-14' });
-    expect(p.tradelines[0]).toMatchObject({ creditor: 'Chase Sapphire Preferred ····9876', type: 'credit_card', balance: 1352.43, monthlyPayment: 40, creditLimit: 12000, apr: 24.99, consumer: true });
+    expect(p.tradelines[0]).toMatchObject({ creditor: 'Chase Sapphire Preferred', type: 'credit_card', balance: 1352.43, monthlyPayment: 40, creditLimit: 12000, apr: 24.99, consumer: true });
   });
   it('treats payments as excluded, refunds as income, purchases and interest as expenses', () => {
     const byDesc = Object.fromEntries(p.lines.map((l) => [l.description, l]));

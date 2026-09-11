@@ -7,6 +7,8 @@ import { currentMonthKey, nowIso, today } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { dueOccurrences } from '@/lib/recurring';
 import { learnableWords } from '@/parser';
+import { redactSensitive } from '@/lib/validate';
+import { sweepImportCache } from '@/lib/pdfBytes';
 import { cancelReminderNotification, nextOccurrence, notificationPermissionState, scheduleReminderNotification, type PermissionState } from '@/lib/reminders';
 import { getLocale, resolveLanguage } from '@/i18n';
 
@@ -52,7 +54,7 @@ interface AppState {
   rearmReminders: () => Promise<void>;
 
   /** Saves the chosen lines from a statement as entries. Returns how many were added. */
-  importStatement: (lines: StatementLine[], meta: { kind: 'bank' | 'card' | 'credit_report'; fileName: string; periodStart: string | null; periodEnd: string | null }) => Promise<number>;
+  importStatement: (lines: StatementLine[], meta: { kind: 'bank' | 'card' | 'credit_report'; periodStart: string | null; periodEnd: string | null }) => Promise<number>;
   saveDebt: (d: Debt) => Promise<void>;
   removeDebt: (id: string) => Promise<void>;
   /** Adds or refreshes debts from a credit report or card statement (matched by creditor name). */
@@ -93,6 +95,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     await get().refresh();
     set({ ready: true });
     get().rearmReminders().catch(() => {});
+    sweepImportCache().catch(() => {});
   },
 
   refresh: async () => {
@@ -125,7 +128,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addTransaction: async (input) => {
     const db = await getDb();
-    const t: Transaction = { ...input, id: newId(), createdAt: nowIso(), isRecurringInstance: false, recurringRuleId: null };
+    const t: Transaction = { ...input, note: input.note ? redactSensitive(input.note) || null : null, rawInput: input.rawInput ? redactSensitive(input.rawInput) || null : null, id: newId(), createdAt: nowIso(), isRecurringInstance: false, recurringRuleId: null };
     await repo.insertTransaction(db, t);
     await get().refresh();
     return t;
@@ -133,7 +136,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateTransaction: async (t) => {
     const db = await getDb();
-    await repo.updateTransaction(db, t);
+    await repo.updateTransaction(db, { ...t, note: t.note ? redactSensitive(t.note) || null : null });
     await get().refresh();
   },
 
@@ -157,7 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveGoal: async (g) => {
     const db = await getDb();
-    await repo.upsertGoal(db, g);
+    await repo.upsertGoal(db, { ...g, name: redactSensitive(g.name) || g.name });
     await get().refresh();
   },
 
@@ -195,7 +198,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const db = await getDb();
     const settings = get().settings;
     const title = getLocale(resolveLanguage(settings?.language)).s.reminderNotificationTitle;
-    const rem: Reminder = { ...input, id: newId(), createdAt: nowIso(), notificationId: null };
+    const rem: Reminder = { ...input, text: redactSensitive(input.text) || input.text, id: newId(), createdAt: nowIso(), notificationId: null };
     rem.notificationId = await scheduleReminderNotification(rem, title);
     await repo.upsertReminder(db, rem);
     const state = await notificationPermissionState();
@@ -243,13 +246,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (!l.include || known.has(l.fingerprint)) continue;
         const type = l.direction === 'in' ? 'income' : 'expense';
         await repo.insertTransaction(db, {
-          id: newId(), amount: l.amount, type, categoryId: l.categoryId, note: l.description || null, rawInput: null, occurredAt: l.date,
+          id: newId(), amount: l.amount, type, categoryId: l.categoryId, note: redactSensitive(l.description) || null, rawInput: null, occurredAt: l.date,
           createdAt: nowIso(), isRecurringInstance: false, recurringRuleId: null, fingerprint: l.fingerprint, importId,
         });
         known.add(l.fingerprint);
         count += 1;
       }
-      await repo.insertImport(db, { id: importId, kind: meta.kind, fileName: meta.fileName.slice(0, 120), periodStart: meta.periodStart, periodEnd: meta.periodEnd, count, importedAt: nowIso() });
+      // The file name is not kept either (it often carries an account number).
+      await repo.insertImport(db, { id: importId, kind: meta.kind, fileName: '', periodStart: meta.periodStart, periodEnd: meta.periodEnd, count, importedAt: nowIso() });
     });
     await get().refresh();
     return count;
@@ -257,7 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveDebt: async (d) => {
     const db = await getDb();
-    await repo.upsertDebt(db, { ...d, updatedAt: nowIso() });
+    await repo.upsertDebt(db, { ...d, creditor: redactSensitive(d.creditor) || d.creditor, updatedAt: nowIso() });
     await get().refresh();
   },
 
@@ -277,7 +281,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const match = existing.find((d) => norm(d.creditor) === norm(t.creditor) || (t.source === 'card_statement' && d.source === 'card_statement' && norm(d.creditor).slice(-4) === norm(t.creditor).slice(-4)));
       await repo.upsertDebt(db, {
         id: match?.id ?? newId(),
-        creditor: t.creditor.slice(0, 80),
+        creditor: (redactSensitive(t.creditor) || t.creditor).slice(0, 80),
         type: t.type,
         balance: t.balance ?? match?.balance ?? 0,
         monthlyPayment: t.monthlyPayment ?? match?.monthlyPayment ?? null,

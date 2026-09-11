@@ -42,7 +42,6 @@ export interface StatementLine {
   month: string;
   rawDate: string;
   description: string;
-  rawText: string;
   amount: number;
   /** 'in' = money arrived in this account, 'out' = money left it. */
   direction: 'in' | 'out';
@@ -92,7 +91,6 @@ export interface MonthSummary {
 export interface ParsedStatement {
   kind: StatementKind;
   period: StatementPeriod | null;
-  account: string | null;
   lines: StatementLine[];
   tradelines: Tradeline[];
   months: MonthSummary[];

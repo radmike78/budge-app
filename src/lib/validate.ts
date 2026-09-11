@@ -40,6 +40,28 @@ export function cleanEntry(input: unknown): string {
   return input.replace(CONTROL_CHARS, '').trim().slice(0, MAX_ENTRY_LENGTH);
 }
 
+// Card numbers (13-19 digits, plain or in groups of 4 / 4-6-5), account and routing numbers
+// (8+ contiguous digits), IBANs, and masked forms like "XXXX1234" or "ending in 1234".
+const CARD_GROUPED_RE = /\b\d{4}(?:[ -]\d{4}){2,4}\b|\b\d{4}[ -]\d{6}[ -]\d{5}\b/g;
+const LONG_DIGITS_RE = /\b\d{8,19}\b/g;
+const IBAN_RE = /\b[A-Z]{2}\d{2}(?:[ -]?[A-Z0-9]{4}){2,7}(?:[ -]?[A-Z0-9]{1,4})?\b/gi;
+const MASKED_RE = /(?:[xX*•·#]{2,}\s?[-]?\s?\d{2,6}\b)|(?:\b(?:ending(?: in)?|last four|acct|account|card|a\/c|iban|routing|no\.?)\s*(?:number|#|no\.?)?\s*:?\s*[xX*•·]*\s?\d{4,}\b)/gi;
+
+/**
+ * Removes bank account, card, routing and IBAN numbers from free text so they
+ * are never stored. Amounts, dates and short numbers ("Phillips 66", "2 coffees") stay.
+ */
+export function redactSensitive(input: unknown): string {
+  if (typeof input !== 'string') return '';
+  return input
+    .replace(IBAN_RE, ' ')
+    .replace(CARD_GROUPED_RE, ' ')
+    .replace(LONG_DIGITS_RE, ' ')
+    .replace(MASKED_RE, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 export class BackupValidationError extends Error {
   constructor(public readonly reason: string) {
     super(`Invalid backup: ${reason}`);

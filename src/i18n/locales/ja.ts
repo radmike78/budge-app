@@ -149,7 +149,7 @@ export const ja: LocaleDef = {
     reminderNotificationTitle: 'OnlyBudget のリマインダー',
     // statement import
     importStatement: '明細を取り込む',
-    importStatementSub: '銀行やカードの明細、信用情報のレポートを PDF で。データは端末内に残ります。',
+    importStatementSub: '銀行・カードの明細や信用情報レポートの PDF。端末上で読み取った後に削除します。承認した項目だけが残り、口座番号やカード番号は一切保存しません。',
     importIntro: '銀行・カード会社・信用情報機関の PDF を選んでください。OnlyBudget はこの端末上で読み取り、各行をカテゴリに分け、保存前にすべて表示します。アップロードはしません。',
     pickPdf: 'PDF を選ぶ',
     readingPdf: 'ファイルを読み込み中…',

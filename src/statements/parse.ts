@@ -184,18 +184,8 @@ function categorize(rawDescription: string, cleaned: string, direction: 'in' | '
   return { categoryId: has(fallback) ? fallback : null, confidence: 0.3, lineKind: guess.kind };
 }
 
-/** Account label from the first rows: "Chase Sapphire ... ending in 1234", "Checking account ...5678". */
-function findAccount(rows: Row[]): string | null {
-  for (const row of rows.slice(0, 60)) {
-    if (!/\b(?:account|acct|card|tarjeta|cuenta|compte|carte|konto|karte)\b/i.test(row.text)) continue;
-    const groups = row.text.match(/(?<![\d.,])\d{4}(?![\d.,])/g);
-    if (groups && groups.length) return `····${groups[groups.length - 1]}`;
-  }
-  return null;
-}
-
 /** Card statement facts that make a tradeline: new balance, minimum payment, credit limit, APR. */
-function cardTradeline(rows: Row[], account: string | null): Tradeline | null {
+function cardTradeline(rows: Row[]): Tradeline | null {
   let balance: number | null = null;
   let minimum: number | null = null;
   let limit: number | null = null;
@@ -211,7 +201,8 @@ function cardTradeline(rows: Row[], account: string | null): Tradeline | null {
     if (!issuer && t.length <= 44 && ISSUER_RE.test(t) && !findMoney(t).length && !/\d{4}/.test(t)) issuer = cleanDescription(t);
   }
   if (balance == null && minimum == null && limit == null) return null;
-  const creditor = `${issuer ?? 'Credit card'}${account ? ` ${account}` : ''}`;
+  // Never the card number, not even the last four digits: the issuer's name is enough.
+  const creditor = (issuer ?? 'Credit card').replace(/\b\d{3,}\b/g, ' ').replace(/\s{2,}/g, ' ').trim();
   return { id: `card-${fnv(creditor)}`, creditor, type: 'credit_card', balance, monthlyPayment: minimum, creditLimit: limit, apr, status: 'open', consumer: true, source: 'card_statement' };
 }
 
@@ -241,11 +232,10 @@ export function summarizeMonths(lines: StatementLine[], period: StatementPeriod 
 export function parseStatement(rows: Row[], ctx: ParseContext, opts: ParseOptions): ParsedStatement {
   const warnings: string[] = [];
   const kind = detectKind(rows);
-  if (kind === 'credit_report') return { kind, period: null, account: null, lines: [], tradelines: [], months: [], warnings: ['isCreditReport'] };
+  if (kind === 'credit_report') return { kind, period: null, lines: [], tradelines: [], months: [], warnings: ['isCreditReport'] };
   const period = findPeriod(rows, opts.language, opts.today);
   if (!period) warnings.push('noPeriod');
   const cols = findColumns(rows);
-  const account = findAccount(rows);
   const candidates = lineCandidates(rows, cols, opts.language);
 
   const lines: StatementLine[] = [];
@@ -281,7 +271,7 @@ export function parseStatement(rows: Row[], ctx: ParseContext, opts: ParseOption
     seen.add(fingerprint);
     const include = !duplicate && cat.lineKind !== 'transfer' && cat.lineKind !== 'payment';
     lines.push({
-      fingerprint, date, month: monthOf(date), rawDate: c.hit.raw, description, rawText: c.row.text, amount: decided.amount, direction: decided.direction,
+      fingerprint, date, month: monthOf(date), rawDate: c.hit.raw, description, amount: decided.amount, direction: decided.direction,
       kind: cat.lineKind, balance: decided.balance, categoryId: cat.categoryId, categoryConfidence: cat.confidence, include, duplicate, page: c.row.page,
     });
   }
@@ -289,8 +279,8 @@ export function parseStatement(rows: Row[], ctx: ParseContext, opts: ParseOption
   if (lines.length && unsure / lines.length > 0.5) warnings.push('directionGuessed');
   if (lines.some((l) => l.duplicate)) warnings.push('hasDuplicates');
   if (period && lines.some((l) => l.date < addDays(period.start, -10) || l.date > addDays(period.end, 10))) warnings.push('datesOutsidePeriod');
-  const tradelines = kind === 'card' ? [cardTradeline(rows, account)].filter((t): t is Tradeline => !!t) : [];
+  const tradelines = kind === 'card' ? [cardTradeline(rows)].filter((t): t is Tradeline => !!t) : [];
   const months = summarizeMonths(lines, period);
   if (period && daysBetween(period.start, period.end) > 40) warnings.push('multiMonth');
-  return { kind, period, account, lines, tradelines, months, warnings };
+  return { kind, period, lines, tradelines, months, warnings };
 }

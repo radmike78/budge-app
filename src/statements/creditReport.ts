@@ -90,7 +90,8 @@ export function parseCreditReport(rows: Row[]): Tradeline[] {
   };
   const start = (creditor: string) => {
     finish();
-    const name = creditor.trim().replace(/\s{2,}/g, ' ');
+    // Creditor names only; account numbers and masked fragments on the same line are dropped.
+    const name = creditor.replace(/\b(?:x{2,}|\*{2,}|•{2,}|·{2,})\s?\d*\b/gi, ' ').replace(/\b\d{3,}\b/g, ' ').replace(/[#*]+/g, ' ').replace(/\s{2,}/g, ' ').trim() || 'Account';
     current = { id: `tl-${out.length + 1}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`, creditor: name, type: typeFrom(name), balance: null, monthlyPayment: null, creditLimit: null, apr: null, status: 'unknown', consumer: true, source: 'credit_report' };
   };
   const assign = (field: (typeof LABELS)[number]['field'], value: string) => {
@@ -103,7 +104,7 @@ export function parseCreditReport(rows: Row[]): Tradeline[] {
     else if (field === 'apr') current.apr = findPercent(v) ?? current.apr;
     else if (field === 'type') { const t = typeFrom(v, current.type); if (t !== 'other' || current.type === 'other') current.type = t; }
     else if (field === 'status') { const s = statusFrom(v); if (s !== 'unknown') current.status = s; }
-    else if (field === 'name') current.creditor = v.slice(0, 60);
+    else if (field === 'name') current.creditor = v.replace(/\b\d{3,}\b/g, ' ').replace(/[#*]+/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 60) || current.creditor;
   };
 
   for (const row of rows) {
