@@ -6,7 +6,7 @@ import type { Goal } from '@/types';
 const TODAY = '2026-09-10'; // Thursday
 
 const goals: Goal[] = [
-  { id: 'g1', name: 'Viaje a Japón', targetAmount: 3000, currentAmount: 500, targetDate: '2027-04-01', createdAt: '2026-08-01T00:00:00Z', completed: false },
+  { id: 'g1', name: 'Viaje a Japón', kind: 'saving', targetAmount: 3000, currentAmount: 500, targetDate: '2027-04-01', createdAt: '2026-08-01T00:00:00Z', completed: false },
 ];
 
 function ctx(language: string, overrides: Partial<ParseContext> = {}): ParseContext {

@@ -8,13 +8,14 @@ import { parseMoneyInput } from '@/lib/money';
 import { newId } from '@/lib/ids';
 import { categoryName, hintText, useDateFormat, useLocale, useMoney, useT } from '@/i18n';
 import { HINT, type ParseResult } from '@/parser';
-import type { TxType } from '@/types';
-import { CategoryPicker, DatePicker, Sheet } from './pickers';
+import type { GoalKind, ReminderRepeat, TxType } from '@/types';
+import { CategoryPicker, DatePicker, Sheet, TimePicker } from './pickers';
+import { notify } from '@/lib/dialogs';
 import { Button, Field, Row, Segmented, Text } from './ui';
 
 interface Draft {
   key: string;
-  kind: 'transaction' | 'goal' | 'contribution';
+  kind: 'transaction' | 'goal' | 'contribution' | 'reminder';
   raw: string;
   amountText: string;
   type: TxType;
@@ -23,7 +24,11 @@ interface Draft {
   note: string;
   date: string;
   goalName: string;
+  goalKind: GoalKind;
   goalId: string | null;
+  reminderText: string;
+  reminderTime: string;
+  reminderRepeat: ReminderRepeat;
   hints: string[];
 }
 
@@ -39,7 +44,11 @@ function toDraft(r: ParseResult, i: number): Draft {
     note: r.note ?? '',
     date: r.occurredAt,
     goalName: r.goalName ?? '',
+    goalKind: r.goalKind ?? 'saving',
     goalId: r.goalId,
+    reminderText: r.reminderText ?? '',
+    reminderTime: r.reminderTime ?? '09:00',
+    reminderRepeat: r.reminderRepeat ?? 'none',
     hints: r.hints,
   };
 }
@@ -61,10 +70,12 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
   const saveGoal = useAppStore((s) => s.saveGoal);
   const contributeToGoal = useAppStore((s) => s.contributeToGoal);
   const learnCategory = useAppStore((s) => s.learnCategory);
+  const addReminder = useAppStore((s) => s.addReminder);
 
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [pickingCat, setPickingCat] = useState<number | null>(null);
   const [pickingDate, setPickingDate] = useState<number | null>(null);
+  const [pickingTime, setPickingTime] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,18 +111,25 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
   };
 
   const saveAll = async () => {
-    const amounts = drafts.map((d) => parseMoneyInput(d.amountText, decimalComma));
+    const amounts = drafts.map((d) => (d.kind === 'reminder' ? 1 : parseMoneyInput(d.amountText, decimalComma)));
     if (amounts.some((a) => a == null || a <= 0)) { setError(t.enterAmount); return; }
+    if (drafts.some((d) => d.kind === 'reminder' && !d.reminderText.trim())) { setError(t.giveReminderText); return; }
     if (drafts.some((d) => d.kind === 'goal' && !d.goalName.trim())) { setError(t.giveGoalName); return; }
     setSaving(true);
     try {
       let out = 0;
       let inc = 0;
+      let blocked: 'denied' | 'unsupported' | null = null;
       for (let i = 0; i < drafts.length; i++) {
         const d = drafts[i];
         const amount = amounts[i] as number;
+        if (d.kind === 'reminder') {
+          const state = await addReminder({ text: d.reminderText.trim(), date: d.date, time: d.reminderTime, repeat: d.reminderRepeat });
+          if (state !== 'granted') blocked = state;
+          continue;
+        }
         if (d.kind === 'goal') {
-          await saveGoal({ id: newId(), name: d.goalName.trim(), targetAmount: amount, currentAmount: 0, targetDate: null, createdAt: nowIso(), completed: false });
+          await saveGoal({ id: newId(), name: d.goalName.trim(), kind: d.goalKind, targetAmount: amount, currentAmount: 0, targetDate: null, createdAt: nowIso(), completed: false });
           continue;
         }
         if (d.kind === 'contribution' && d.goalId) {
@@ -125,6 +143,7 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onDone(t.toastLoggedMany(drafts.length, out > 0 ? money(out, { compact: true }) : null, inc > 0 ? money(inc, { compact: true }) : null));
+      if (blocked) notify(t.notificationsNeeded, blocked === 'unsupported' ? t.remindersUnsupported : t.notificationsNeededBody);
     } finally {
       setSaving(false);
     }
@@ -149,7 +168,7 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
           const goal = d.goalId ? goals.find((g) => g.id === d.goalId) : null;
           const catLabel = category ? `${category.icon ?? ''} ${categoryName(category, t)}`.trim() : t.pickCategory;
           const unsure = d.hints.includes(HINT.unsureCategory);
-          const title = d.kind === 'goal' ? t.newGoal : d.kind === 'contribution' ? t.addTo(goal?.name ?? '') : d.note || (d.type === 'income' ? t.moneyIn : t.moneyOut);
+          const title = d.kind === 'reminder' ? t.newReminder : d.kind === 'goal' ? t.newGoal : d.kind === 'contribution' ? t.addTo(goal?.name ?? '') : d.note || (d.type === 'income' ? t.moneyIn : t.moneyOut);
           return (
             <View key={d.key} style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
@@ -158,7 +177,7 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
                   <Text variant="muted">{t.remove}</Text>
                 </Pressable>
               </Row>
-              <Field
+              {d.kind !== 'reminder' ? <Field
                 label={d.kind === 'goal' ? t.targetAmount : t.amount}
                 value={d.amountText}
                 onChangeText={(v) => update(i, { amountText: v })}
@@ -166,9 +185,25 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
                 placeholder={decimalComma ? '0,00' : '0.00'}
                 inputStyle={{ fontSize: 22, fontWeight: '700' }}
                 style={{ marginBottom: spacing.md }}
-              />
-              {d.kind === 'goal' ? (
-                <Field label={t.goalName} value={d.goalName} onChangeText={(v) => update(i, { goalName: v })} placeholder={t.goalNamePlaceholder} style={{ marginBottom: spacing.sm }} />
+              /> : null}
+              {d.kind === 'reminder' ? (
+                <>
+                  <Field label={t.reminderWhat} value={d.reminderText} onChangeText={(v) => update(i, { reminderText: v })} placeholder={t.optional} style={{ marginBottom: spacing.md }} />
+                  <Row style={{ marginBottom: spacing.md, flexWrap: 'wrap' }}>
+                    <Button tone="secondary" small title={friendlyDate(d.date, today(), fmt)} onPress={() => setPickingDate(i)} />
+                    <Button tone="secondary" small title={d.reminderTime} onPress={() => setPickingTime(i)} />
+                  </Row>
+                  <View style={{ marginBottom: spacing.xs }}>
+                    <Segmented value={d.reminderRepeat} onChange={(v) => update(i, { reminderRepeat: v })} options={[{ value: 'none', label: t.repeatOnce }, { value: 'daily', label: t.repeatDaily }, { value: 'weekly', label: t.repeatWeekly }, { value: 'monthly', label: t.repeatMonthly }]} />
+                  </View>
+                </>
+              ) : d.kind === 'goal' ? (
+                <>
+                  <View style={{ marginBottom: spacing.md }}>
+                    <Segmented value={d.goalKind} onChange={(v) => update(i, { goalKind: v })} options={[{ value: 'saving', label: t.goalKindSaving }, { value: 'debt', label: t.goalKindDebt }]} />
+                  </View>
+                  <Field label={t.goalName} value={d.goalName} onChangeText={(v) => update(i, { goalName: v })} placeholder={t.goalNamePlaceholder} style={{ marginBottom: spacing.sm }} />
+                </>
               ) : d.kind === 'contribution' ? (
                 <Row style={{ marginBottom: spacing.sm }}>
                   <Button tone="secondary" small title={friendlyDate(d.date, today(), fmt)} onPress={() => setPickingDate(i)} />
@@ -209,6 +244,13 @@ export function MultiConfirmationCard({ results, onDone, onCancel }: { results: 
         onClose={() => setPickingDate(null)}
         value={dateRow?.date ?? today()}
         onPick={(day) => { if (pickingDate != null) update(pickingDate, { date: day }); }}
+        mode={dateRow?.kind === 'reminder' ? 'reminder' : undefined}
+      />
+      <TimePicker
+        visible={pickingTime != null}
+        onClose={() => setPickingTime(null)}
+        value={pickingTime != null ? drafts[pickingTime]?.reminderTime ?? '09:00' : '09:00'}
+        onPick={(tm) => { if (pickingTime != null) update(pickingTime, { reminderTime: tm }); }}
       />
     </Sheet>
   );

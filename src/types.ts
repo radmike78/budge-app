@@ -40,9 +40,29 @@ export interface RecurringRule {
   active: boolean;
 }
 
+export type GoalKind = 'saving' | 'debt';
+
+export type ReminderRepeat = 'none' | 'daily' | 'weekly' | 'monthly';
+
+/** A spoken or typed reminder, delivered as a local notification. */
+export interface Reminder {
+  id: string;
+  text: string;
+  /** YYYY-MM-DD of the first (or only) time it fires */
+  date: string;
+  /** HH:MM, 24-hour, local time */
+  time: string;
+  repeat: ReminderRepeat;
+  /** Id of the scheduled notification; null when notifications are not allowed. */
+  notificationId: string | null;
+  createdAt: string;
+}
+
 export interface Goal {
   id: string;
   name: string;
+  /** Save up toward something, or pay down a debt. */
+  kind: GoalKind;
   targetAmount: number;
   currentAmount: number;
   /** YYYY-MM-DD or null */

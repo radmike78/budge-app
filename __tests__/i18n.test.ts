@@ -51,7 +51,7 @@ describe('plain-language sentences exist in every locale', () => {
   it.each(ALL.map((l) => [l.code, l] as const))('%s month summary and goal pace are non-empty', (_code, locale) => {
     const sentence = monthSummarySentence(stats, locale.defaultCurrency, true, locale);
     expect(sentence.length).toBeGreaterThan(10);
-    const p = goalProgress({ id: 'g', name: 'X', targetAmount: 500, currentAmount: 320, targetDate: '2026-12-01', createdAt: '2026-08-01T00:00:00.000Z', completed: false }, locale.defaultCurrency, '2026-09-10', locale);
+    const p = goalProgress({ id: 'g', name: 'X', kind: 'saving', targetAmount: 500, currentAmount: 320, targetDate: '2026-12-01', createdAt: '2026-08-01T00:00:00.000Z', completed: false }, locale.defaultCurrency, '2026-09-10', locale);
     expect(p.status).toBe('ahead');
     expect(p.sentence.length).toBeGreaterThan(5);
   });

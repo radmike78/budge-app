@@ -1,6 +1,7 @@
-import { ISO_RULE, byMonthRule, byYearRule, dayMonthRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
+import { ISO_RULE, byMonthRule, byYearRule, endOfYearRule, dayMonthRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
 import { makeNumberWords } from '../numbers';
 import type { LanguagePack } from '../types';
+import { clockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 
 const MONTHS = { names: { janvier: 0, janv: 0, février: 1, fevrier: 1, févr: 1, fevr: 1, mars: 2, avril: 3, avr: 3, mai: 4, juin: 5, juillet: 6, juil: 6, août: 7, aout: 7, septembre: 8, sept: 8, octobre: 9, oct: 9, novembre: 10, nov: 10, décembre: 11, decembre: 11, déc: 11, dec: 11 } };
 const WEEKDAYS = { names: { dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6 }, lastAfter: ['dernier'], prefixes: ['le', 'ce'] };
@@ -78,20 +79,23 @@ export const fr: LanguagePack = {
       nextYear: ["l'année prochaine", "d'ici l'année prochaine", "pour l'année prochaine", "avant l'année prochaine"],
       nextMonth: ['le mois prochain', "d'ici le mois prochain", 'pour le mois prochain', 'avant le mois prochain'],
       christmas: ['pour noël', 'avant noël', "d'ici noël", 'noël'],
-      inDays: /\bdans (\d+|un) jours?\b/,
-      inWeeks: /\bdans (\d+|une) semaines?\b/,
-      inMonths: /\bdans (\d+|un) mois\b/,
-      inYears: /\bdans (\d+|un) ans?\b/,
+      inDays: /\b(?:dans|d'ici|en|sous|pendant|sur) (?:les )?(\d+|un) (?:prochains )?jours?\b/,
+      inWeeks: /\b(?:dans|d'ici|en|sous|pendant|sur) (?:les )?(\d+|une) (?:prochaines )?semaines?\b/,
+      inMonths: /\b(?:dans|d'ici|en|sous|pendant|sur) (?:les )?(\d+|un) (?:prochains )?mois\b/,
+      inYears: /\b(?:dans|d'ici|en|sous|pendant|sur) (?:les )?(\d+|un) (?:prochaines )?ans?\b/,
       oneWords: ['un', 'une'],
       seasons: { spring: ['pour le printemps', "d'ici le printemps", 'avant le printemps'], summer: ["pour l'été", "d'ici l'été", "avant l'été", "cet été"], fall: ["pour l'automne", "d'ici l'automne", "avant l'automne"], winter: ["pour l'hiver", "d'ici l'hiver", "avant l'hiver"] },
     }),
     dayMonthRule(MONTHS, { pre: ['pour le', 'avant le', "d'ici le", 'le', 'pour'], ordinal: '(?:er)?', future: true }),
-    byMonthRule(MONTHS, ['pour', 'avant', "d'ici", 'en', "jusqu'en", 'pour fin', "d'ici fin", 'avant fin']),
-    byYearRule(['pour', 'avant', "d'ici", 'en']),
+    endOfYearRule(['pour fin', "d'ici fin", 'avant fin', "d'ici la fin de", 'avant la fin de', 'pour la fin de', 'fin']),
+    byMonthRule(MONTHS, ['pour', 'avant', "d'ici", 'en', "jusqu'en", 'pour fin', "d'ici fin", 'avant fin', 'pour le prochain', 'le prochain']),
+    byYearRule(['pour', 'avant', "d'ici", 'en', 'courant']),
   ],
-  goalLead: /^(?:objectif|but|nouvel objectif|objectif d'épargne)\s*:?\s*/,
+  goalLead: /^(?:objectif|but|nouvel objectif|objectif d'épargne|(?:fais|faire|crée|créer|je veux|je voudrais|fixe|fixer|mets|mettre)(?: un| une| moi un| en place un)?(?: nouvel| nouveau| nouvelle)? (?:plan|objectif|but)(?: pour| de)?)\s*:?\s*/iu,
   goalIntent: /(?<![\p{L}])(?:je veux économiser|je voudrais économiser|j'aimerais économiser|je veux mettre de côté|je veux épargner|je dois économiser|je veux garder|économiser|épargner|mettre de côté)(?![\p{L}])/iu,
-  goalPastVerbs: /(?<![\p{L}])(?:économisé|épargné|mis|ajouté|viré|transféré|déposé|versé|placé)(?![\p{L}])/iu,
+  goalPastVerbs: /(?<![\p{L}])(?:économisé|épargné|mis|ajouté|viré|transféré|déposé|versé|placé|payé|remboursé)(?![\p{L}])/iu,
+  debtIntent: /(?<![\p{L}])(?:(?:je veux |je voudrais |j'aimerais |je dois |je vais |on veut |nous voulons |il faut )?(?:rembourser|solder|éponger|eponger|réduire|reduire|me débarrasser de|me debarrasser de|sortir de|finir de payer|liquider|sans dettes?))(?![\p{L}])/iu,
+  debtWords: /(?<![\p{L}])(?:dettes?|carte de crédit|carte de credit|prêts?|prets?|crédit|credit|emprunt|hypothèque|hypotheque|découvert|decouvert)(?![\p{L}])/iu,
   contributionVerbs: /(?<![\p{L}])(?:ajout(?:é|e|er)|mis|mets|mettre|économisé|épargné|vir(?:é|e)|transf(?:éré|ère|erer)|dépos(?:é|e)|vers(?:é|e)|plac(?:é|e))(?![\p{L}])/iu,
   contributionPreps: 'à|au|à la|à mon|à ma|pour|vers|dans|sur|sur mon|sur ma|dans mon|dans ma',
   forWords: "pour|pour le|pour la|pour un|pour une|pour les|pour mon|pour ma|pour mes|pour l'",
@@ -101,5 +105,32 @@ export const fr: LanguagePack = {
   trailingFiller: /(?:\s+(?:aujourd'hui|hier|en|de|du|des|pour|par|avec|à|au|le|la|les|un|une|et|chaque|total|encore|aussi|s'il te plaît|merci|ça|ce|cela|environ|à peu près))+$/u,
   noteStrip: [],
   listSeparators: [',', ';', 'et', 'plus', 'puis', 'et puis', 'et aussi', 'ensuite'],
+  reminder: {
+    lead: /(?<![\p{L}])(?:(?:peux-tu |tu peux |pouvez-vous |s'il te plaît |stp )?(?:rappelle-moi|rappelle moi|rappelez-moi|rappelez moi|me rappeler|rappelle-nous|mets un rappel|mettre un rappel|mets-moi un rappel|crée un rappel|créer un rappel|ajoute un rappel|je veux un rappel|il me faut un rappel|rappel|préviens-moi|previens-moi|fais-moi penser|fais moi penser|ne me laisse pas oublier|pense-bête))(?![\p{L}])(?:\s+(?:de|que|à|a|pour|d'))?\s*:?/iu,
+    time: [
+      clockRule(['à', 'a', 'vers', 'pour'], { suffix: 'h(?:eures?)?', hourSep: '(?:h|:)', dayParts: { 'du matin': 0, 'le matin': 0, "de l'après-midi": 12, "de l'apres-midi": 12, 'du soir': 12, 'le soir': 12 } }),
+      ...wordTimeRules({ morning: ['le matin', 'dans la matinée', 'dans la matinee', 'ce matin', 'au réveil'], noon: ['à midi', 'a midi', 'midi', 'au déjeuner'], afternoon: ["dans l'après-midi", "dans l'apres-midi", "cet après-midi", "cet apres-midi", "l'après-midi"], evening: ['ce soir', 'le soir', 'dans la soirée', 'dans la soiree', 'cette nuit', 'avant de dormir'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }),
+    ],
+    repeat: [
+      weeklyOnRule(['tous les', 'chaque', 'le'], WEEKDAYS.names, { suffix: ['s'] }),
+      monthlyOnRule(/(?<![\p{L}])(?:le |tous les )?(\d{1,2}|1er|premier) (?:de )?chaque mois(?![\p{L}])/iu, { '1er': 1, premier: 1 }),
+      repeatWords(['chaque matin', 'tous les matins'], 'daily', 8),
+      repeatWords(['chaque soir', 'tous les soirs', 'chaque nuit', 'toutes les nuits'], 'daily', 20),
+      repeatWords(['chaque après-midi', 'tous les après-midis', 'chaque apres-midi'], 'daily', 15),
+      repeatWords(['chaque jour', 'tous les jours', 'quotidiennement', 'quotidien'], 'daily'),
+      repeatWords(['chaque semaine', 'toutes les semaines', 'hebdomadaire', 'une fois par semaine'], 'weekly'),
+      repeatWords(['chaque mois', 'tous les mois', 'mensuellement', 'mensuel', 'une fois par mois', 'au début de chaque mois', 'en début de mois'], 'monthly'),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['après-demain', 'apres-demain', 'après demain', 'apres demain'], 2),
+      dayWords(['demain'], 1),
+      dayWords(["aujourd'hui", 'ce soir', "cet après-midi", "cet apres-midi", 'ce matin'], 0),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['le prochain', 'prochain', 'ce', 'le', 'pour le'], suffix: ['prochain'], nextWords: ['prochain'] }),
+      dayMonthRule(MONTHS, { pre: ['le', 'pour le', 'du'], ordinal: '(?:er)?', future: true }),
+    ],
+    dayLate: [futureDayOfMonthRule(/(?<![\p{L}])(?:le|pour le) (\d{1,2}(?:er)?|premier)(?![\p{L}\p{N}:h])/iu, { premier: 1 })],
+    strip: [/^(?:(?:de|que|à|a|pour|d'|et|s'il te plaît|s'il vous plaît|stp|il faut|je dois|que je dois|que je)\s+)+/iu, /(?:\s+(?:s'il te plaît|s'il vous plaît|stp|merci))+$/iu],
+  },
   contextualStrings: ['euros', 'courses', 'loyer', 'salaire', 'objectif', 'Netflix', 'Uber', 'resto'],
 };

@@ -19,6 +19,7 @@ interface LlmParsed {
   note: string | null;
   kind: 'transaction' | 'goal';
   goal_name: string | null;
+  goal_kind?: 'saving' | 'debt' | null;
   target_date: string | null;
 }
 
@@ -33,6 +34,7 @@ const SCHEMA = {
     note: { type: ['string', 'null'], description: 'Short human note (2-5 words) describing the entry, or null.' },
     kind: { type: 'string', enum: ['transaction', 'goal'] },
     goal_name: { type: ['string', 'null'] },
+    goal_kind: { type: ['string', 'null'], enum: ['saving', 'debt', null], description: '"debt" when the goal is paying off a debt, loan or card; "saving" when saving up for something.' },
     target_date: { type: ['string', 'null'], description: 'YYYY-MM-DD if the phrase names a deadline, else null.' },
   },
 } as const;
@@ -77,6 +79,7 @@ export async function llmParse(
     if (parsed.kind === 'goal') {
       out.kind = 'goal';
       out.goalName = parsed.goal_name;
+      out.goalKind = parsed.goal_kind === 'debt' ? 'debt' : 'saving';
       out.targetDate = parsed.target_date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.target_date) ? parsed.target_date : null;
     }
     return out;

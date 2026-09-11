@@ -7,5 +7,6 @@ Read README.md first. The five product principles there are non-negotiable and e
 - Copy in the UI is plain sentences. No "over budget!", no red states, no streaks.
 - Every user-facing string comes from `useT()` / the locale tables in `src/i18n/locales`. Adding a key means adding it to all eight locale files (the `LocaleDef` type enforces it). Parser behavior per language lives in `src/parser/packs`.
 - Schema changes go in a new entry of `MIGRATIONS` in `src/db/database.ts`. Never edit an existing migration.
+- Parser kinds: transaction, goal (kind saving or debt), contribution, reminder. Reminder phrasing per language lives in the `reminder` block of each pack (lead words, clock times, repeat words, future days); shared helpers are in `src/parser/reminderRules.ts`. Notifications are scheduled only from `src/lib/reminders.ts`, and anything that saves a reminder must handle the permission being refused (tell the user, keep the reminder).
 - The web build must keep working: `npm run build:web` (Metro config adds the SQLite wasm asset; nginx/dev server send COOP/COEP headers). Use `confirmDialog`/`notify` from `src/lib/dialogs.ts` instead of `Alert`, which is a no-op on web.
 - Run `npm test` and `npm run typecheck` before committing. `npx expo export --platform android` is a good smoke test for bundling.

@@ -1,4 +1,4 @@
-import type { Category, CategoryTotal, Goal, KeywordMapping, MonthStats, RecurringRule, Settings, Transaction, TxType } from '@/types';
+import type { Category, CategoryTotal, Goal, KeywordMapping, MonthStats, RecurringRule, Reminder, ReminderRepeat, Settings, Transaction, TxType } from '@/types';
 import type { DB } from './database';
 import { monthRange } from '@/lib/dates';
 
@@ -23,9 +23,9 @@ const toRule = (r: RuleRow): RecurringRule => ({
   id: r.id, amount: r.amount, type: r.type, categoryId: r.category_id, frequency: r.frequency, nextOccurrence: r.next_occurrence, note: r.note, active: r.active === 1,
 });
 
-type GoalRow = { id: string; name: string; target_amount: number; current_amount: number; target_date: string | null; created_at: string; completed: number };
+type GoalRow = { id: string; name: string; kind: string | null; target_amount: number; current_amount: number; target_date: string | null; created_at: string; completed: number };
 const toGoal = (r: GoalRow): Goal => ({
-  id: r.id, name: r.name, targetAmount: r.target_amount, currentAmount: r.current_amount, targetDate: r.target_date, createdAt: r.created_at, completed: r.completed === 1,
+  id: r.id, name: r.name, kind: r.kind === 'debt' ? 'debt' : 'saving', targetAmount: r.target_amount, currentAmount: r.current_amount, targetDate: r.target_date, createdAt: r.created_at, completed: r.completed === 1,
 });
 
 type SettingsRow = { currency: string; theme: Settings['theme']; last_backup_at: string | null; starting_balance: number | null; onboarding_done: number; reminder_enabled: number; reminder_hour: number; smart_parse_enabled: number; language: string | null };
@@ -177,14 +177,40 @@ export async function allGoals(db: DB): Promise<Goal[]> {
 
 export async function upsertGoal(db: DB, g: Goal): Promise<void> {
   await db.runAsync(
-    `INSERT INTO goals (id, name, target_amount, current_amount, target_date, created_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET name = excluded.name, target_amount = excluded.target_amount, current_amount = excluded.current_amount, target_date = excluded.target_date, completed = excluded.completed`,
-    [g.id, g.name, g.targetAmount, g.currentAmount, g.targetDate, g.createdAt, g.completed ? 1 : 0],
+    `INSERT INTO goals (id, name, kind, target_amount, current_amount, target_date, created_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, kind = excluded.kind, target_amount = excluded.target_amount, current_amount = excluded.current_amount, target_date = excluded.target_date, completed = excluded.completed`,
+    [g.id, g.name, g.kind ?? 'saving', g.targetAmount, g.currentAmount, g.targetDate, g.createdAt, g.completed ? 1 : 0],
   );
 }
 
 export async function deleteGoal(db: DB, id: string): Promise<void> {
   await db.runAsync('DELETE FROM goals WHERE id = ?', [id]);
+}
+
+// ---------- reminders ----------
+
+type ReminderRow = { id: string; text: string; due_at: string; repeat: string; notification_id: string | null; created_at: string };
+const REPEATS: ReminderRepeat[] = ['none', 'daily', 'weekly', 'monthly'];
+const toReminder = (r: ReminderRow): Reminder => ({
+  id: r.id, text: r.text, date: r.due_at.slice(0, 10), time: r.due_at.slice(11, 16) || '09:00',
+  repeat: (REPEATS as string[]).includes(r.repeat) ? (r.repeat as ReminderRepeat) : 'none', notificationId: r.notification_id, createdAt: r.created_at,
+});
+
+export async function allReminders(db: DB): Promise<Reminder[]> {
+  const rows = await db.getAllAsync<ReminderRow>('SELECT * FROM reminders ORDER BY due_at ASC');
+  return rows.map(toReminder);
+}
+
+export async function upsertReminder(db: DB, r: Reminder): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO reminders (id, text, due_at, repeat, notification_id, created_at) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET text = excluded.text, due_at = excluded.due_at, repeat = excluded.repeat, notification_id = excluded.notification_id`,
+    [r.id, r.text, `${r.date}T${r.time}`, r.repeat, r.notificationId, r.createdAt],
+  );
+}
+
+export async function deleteReminder(db: DB, id: string): Promise<void> {
+  await db.runAsync('DELETE FROM reminders WHERE id = ?', [id]);
 }
 
 // ---------- settings ----------
@@ -237,8 +263,8 @@ export async function replaceAllData(
         [t.id, t.amount, t.type, t.categoryId, t.note, t.rawInput, t.occurredAt, t.createdAt, t.isRecurringInstance ? 1 : 0, t.recurringRuleId]);
     }
     for (const g of data.goals) {
-      await txn.runAsync('INSERT INTO goals (id, name, target_amount, current_amount, target_date, created_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [g.id, g.name, g.targetAmount, g.currentAmount, g.targetDate, g.createdAt, g.completed ? 1 : 0]);
+      await txn.runAsync('INSERT INTO goals (id, name, kind, target_amount, current_amount, target_date, created_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [g.id, g.name, g.kind === 'debt' ? 'debt' : 'saving', g.targetAmount, g.currentAmount, g.targetDate, g.createdAt, g.completed ? 1 : 0]);
     }
     for (const k of data.keywords) {
       await txn.runAsync('INSERT OR IGNORE INTO keyword_mappings (word, category_id) VALUES (?, ?)', [k.word, k.categoryId]);

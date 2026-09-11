@@ -1,6 +1,7 @@
 import { ISO_RULE, cjkByMonthRule, cjkMonthDayRule, dayOfMonthRule, relativeFutureRules, relativePastRules, weekdayRule, wordRule } from '../dateRules';
 import { cjkNumeralsToDigits, expandK } from '../numbers';
 import type { LanguagePack } from '../types';
+import { cjkClockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 import { fromDateString } from '@/lib/dates';
 
 const WEEKDAYS = {
@@ -87,17 +88,45 @@ export const zh: LanguagePack = {
     cjkByMonthRule('月', ['底之前', '底前', '之前', '以前', '前', '底']),
     wordRule(['后年'], (_m, t) => `${fromDateString(t).getFullYear() + 2}-01-01`, false),
   ],
-  goalLead: /^(?:目标|存钱目标|新目标|设个目标|设定目标|定个目标)\s*:?\s*/,
+  goalLead: /^(?:目标|存钱目标|新目标|设个目标|设定目标|定个目标|还款目标|做个计划|制定计划|制定一个计划|做一个计划|计划|订个计划)\s*:?\s*/,
   goalIntent: /(?:想存|要存|打算存|想攒|要攒|打算攒|想省|存够|攒够|想要存|准备存|计划存|存到|攒到)/,
-  goalPastVerbs: /(?:存了|攒了|存入|转入|放了|加了|存进|放进|转了|投了|追加了)/,
+  goalPastVerbs: /(?:存了|攒了|存入|转入|放了|加了|存进|放进|转了|投了|追加了|还了|付了)/,
+  debtIntent: /(?:还清|还完|还掉|还款|还债|偿还|还上|付清|清掉|结清|要还|想还|得还|准备还|打算还|还掉)/,
+  debtWords: /(?:债务|债|欠款|欠的钱|信用卡|贷款|房贷|车贷|花呗|借呗|白条|账单|借款)/,
   contributionVerbs: /(?:存了|存入|存进|攒了|转入|转到|放了|放进|加了|加到|加入|追加|投了|存)/,
   contributionPreps: '里存|里加|里放|存了|存入|存进|攒了|转入|转到|放了|放进|加了|加到|加入|追加|投了|存',
-  forWords: '为了|为|给|用来|用于|准备|的钱|用',
+  forWords: '为了|为|给|用来|用于|准备|的钱',
   goalWords: '目标|存钱目标',
   articles: /^(?:给|往|向|把|到|在|为了|为|我的|我们的|新的|一个|个)/u,
   leadingFiller: /^(?:今天|昨天|刚才|刚刚|然后|又|还|也|就|我|我们|在|去|用|花了|花|付了|付|买了|买|给|跟|和|了|的|个|一个|一份|一杯|一顿|大概|差不多|左右|约|大约)+/u,
   trailingFiller: /(?:了|的|钱|块钱|元|吧|啊|呢|哦|左右|大概|差不多|一共|总共|一下|一个|一份|一杯|一顿|今天|昨天|用了|用|上|里|中|去|来着|而已)+$/u,
   noteStrip: [/^(?:在|去|跟|和|把|给|往|向)/u],
   listSeparators: ['，', ',', '、', '和', '还有', '然后', '又', '以及', '跟', '加上', '另外'],
+  reminder: {
+    lead: /(?:请|麻烦|帮我|记得|能不能|可以|能)?(?:提醒我一下|提醒一下我|提醒我|提醒一下|提醒|设个提醒|设置一个提醒|设置提醒|加个提醒|定个提醒|别让我忘了|别忘了提醒)(?:一下)?(?:我)?/u,
+    time: [
+      cjkClockRule({ 早上: 0, 早晨: 0, 上午: 0, 凌晨: 0, 中午: 12, 下午: 12, 傍晚: 12, 晚上: 12, 晚: 12, 夜里: 12, 今晚: 12 }, '[点時时]', '分', '半'),
+      ...wordTimeRules({ morning: ['早上', '早晨', '上午', '一早'], noon: ['中午', '午饭时'], afternoon: ['下午'], evening: ['晚上', '傍晚', '今晚', '夜里', '睡前'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }, false),
+    ],
+    repeat: [
+      weeklyOnRule(['每个', '每'], WEEKDAYS.names, { boundaries: false, noSpace: true }),
+      monthlyOnRule(/每(?:个)?月(?:的)?(\d{1,2})[号日]/u),
+      repeatWords(['每天早上', '每天早晨', '每早', '每天上午', '每天一早'], 'daily', 8, false),
+      repeatWords(['每天晚上', '每晚', '每天夜里', '每天睡前'], 'daily', 20, false),
+      repeatWords(['每天下午'], 'daily', 15, false),
+      repeatWords(['每天', '每日', '天天'], 'daily', undefined, false),
+      repeatWords(['每周', '每星期', '每个星期', '每礼拜', '每个礼拜', '每週'], 'weekly', undefined, false),
+      repeatWords(['每个月', '每月', '每月初', '每个月初'], 'monthly', undefined, false),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['后天', '後天'], 2, false),
+      dayWords(['明天', '明早', '明晚'], 1, false),
+      dayWords(['今天', '今晚', '今早', '今日'], 0, false),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['下个', '下', '这个', '这', '本', '下周的'], boundaries: false, noSpace: true, nextWords: ['下'] }),
+    ],
+    dayLate: [futureDayOfMonthRule(/(\d{1,2})[号日]/u)],
+    strip: [/^(?:我|要|去|得|该|一下|记得|记住|别忘了|不要忘了|需要|到时候|到时|然后|的时候|时候|的)+/u, /(?:一下|吧|哦|啊|呀|哈|好吗|可以吗|的|了|的事|这件事|这事)+$/u],
+  },
   contextualStrings: ['块', '元', '午饭', '房租', '工资', '目标', '外卖', '打车'],
 };

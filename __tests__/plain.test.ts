@@ -44,7 +44,7 @@ describe('categoryLineSentence', () => {
 });
 
 describe('goalProgress', () => {
-  const base: Goal = { id: 'g', name: 'Trip', targetAmount: 500, currentAmount: 320, targetDate: '2026-12-01', createdAt: '2026-08-01T00:00:00.000Z', completed: false };
+  const base: Goal = { id: 'g', name: 'Trip', kind: 'saving', targetAmount: 500, currentAmount: 320, targetDate: '2026-12-01', createdAt: '2026-08-01T00:00:00.000Z', completed: false };
   it('reports ahead of pace', () => {
     // 320 saved in 40 days = 8/day; 180 remaining -> 23 days -> Oct 3, ~8 weeks before Dec 1.
     const p = goalProgress(base, 'USD', TODAY);

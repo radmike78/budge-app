@@ -21,7 +21,9 @@ export function useEntryFlow() {
     const text = raw.trim();
     if (!text) return;
     const { categories, goals, keywordMap, settings } = useAppStore.getState();
-    const ctx = { categories, goals, keywordMap, today: today(), language: resolveLanguage(settings?.language) };
+    const now = new Date();
+    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const ctx = { categories, goals, keywordMap, today: today(), nowTime, language: resolveLanguage(settings?.language) };
     const entries = parseEntries(text, ctx);
     if (entries.length > 1) {
       // Several expenses in one go: each becomes its own row on the card.

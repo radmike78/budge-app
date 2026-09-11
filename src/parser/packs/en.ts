@@ -1,6 +1,7 @@
 import { replaceNumberWords } from '../numberWords';
-import { ISO_RULE, byMonthRule, byYearRule, dayMonthRule, dayOfMonthRule, monthDayRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
+import { ISO_RULE, byMonthRule, byYearRule, endOfYearRule, dayMonthRule, dayOfMonthRule, monthDayRule, relativeFutureRules, relativePastRules, slashRule, weekdayRule } from '../dateRules';
 import type { LanguagePack } from '../types';
+import { ORDINAL_WORDS_EN, clockRule, dayWords, futureDayOfMonthRule, futureWeekdayRule, meridiemRule, monthlyOnRule, repeatWords, weeklyOnRule, wordTimeRules } from '../reminderRules';
 import { normalizeDecimalPoint } from '../numbers';
 
 const MONTHS = {
@@ -79,10 +80,10 @@ const relFuture = relativeFutureRules({
   nextYear: ['by next year', 'next year'],
   nextMonth: ['by next month', 'next month'],
   christmas: ['by christmas', 'before christmas', 'christmas'],
-  inDays: /\bin (\d+|a|one) days?\b/,
-  inWeeks: /\bin (\d+|a|one) weeks?\b/,
-  inMonths: /\bin (\d+|a|one) months?\b/,
-  inYears: /\bin (\d+|a|one) years?\b/,
+  inDays: /\b(?:in|within|over|over the next|in the next|during the next|for the next) (\d+|a|one) days?\b/,
+  inWeeks: /\b(?:in|within|over|over the next|in the next|during the next|for the next) (\d+|a|one) weeks?\b/,
+  inMonths: /\b(?:in|within|over|over the next|in the next|during the next|for the next) (\d+|a|one) months?\b/,
+  inYears: /\b(?:in|within|over|over the next|in the next|during the next|for the next) (\d+|a|one) years?\b/,
   oneWords: ['a', 'one'],
   seasons: { spring: ['by spring', 'by next spring'], summer: ['by summer', 'by next summer'], fall: ['by fall', 'by autumn', 'by next fall', 'by next autumn'], winter: ['by winter', 'by next winter'] },
 });
@@ -123,13 +124,16 @@ export const en: LanguagePack = {
     ...relFuture,
     monthDayRule(MONTHS, { pre: ['by', 'before', 'until', 'due'], ordinal: '(?:st|nd|rd|th)?', future: true }),
     dayMonthRule(MONTHS, { pre: ['by', 'before', 'until', 'by the', 'before the', 'the'], between: ['of'], ordinal: '(?:st|nd|rd|th)?', future: true }),
-    byMonthRule(MONTHS, ['by', 'before', 'until', 'in']),
-    byYearRule(['by', 'before']),
+    endOfYearRule(['by end of', 'by the end of', 'before the end of', 'until the end of', 'end of', 'through']),
+    byMonthRule(MONTHS, ['by', 'before', 'until', 'in', 'by next', 'before next', 'until next', 'next', 'by early', 'by mid', 'by late', 'by end of', 'by the end of', 'end of', 'for', 'this']),
+    byYearRule(['by', 'before', 'until', 'in', 'during']),
   ],
-  goalLead: /^(?:goal|new goal|savings goal|saving goal|set (?:a )?goal|create (?:a )?goal)\s*:?\s*/,
+  goalLead: /^(?:(?:new |savings? |debt |payoff )?goal|(?:set|create|make|start|add)(?: up)? (?:a |me a |my |the |another )?(?:new )?(?:savings? |debt |payoff |pay[- ]down )?(?:goal|plan|target)(?: to| of| for)?|i(?:'d| would)? (?:want|like|need) (?:a |to (?:set|make|create|start) (?:a |my )?)(?:new )?(?:savings? |debt )?(?:goal|plan)(?: to| of| for)?)\s*:?\s*/,
   goalIntent: /\b(?:i(?:'d| would)? (?:want|like|need|plan|am trying|'m trying) to (?:save|put away|set aside|have)|want to save|save up|saving up|trying to save|need to save|save)\b/,
-  goalPastVerbs: /\b(?:saved|stashed|moved|added|put|transferred|deposited)\b/,
-  contributionVerbs: /\b(?:add(?:ed)?|put|moved?|saved?|set aside|transfer(?:red)?|deposit(?:ed)?|contribut(?:ed|e)|stashed|stash|tucked away|threw)\b/,
+  goalPastVerbs: /\b(?:saved|stashed|moved|added|put|transferred|deposited|paid)\b/,
+  debtIntent: /\b(?:(?:i(?:'d| would)? (?:want|like|need|plan|am trying|'m trying|am going|'m going) to |we (?:want|need|plan) to |i (?:will|wanna|gotta|have to|got to) |i want a plan to |help me )?(?:pay(?:ing)? (?:down|off|back)|pay (?:it |them |that )?(?:down|off)|get out of debt|get rid of (?:my |the |our )?(?:debt|loan|balance)|(?:be|become|get) debt[- ]free|debt[- ]free|clear (?:my |the |our )?(?:debt|loan|balance|card)|wipe out|knock out))\b/,
+  debtWords: /\b(?:debts?|credit cards?|cards? balance|loans?|student loans?|car loans?|mortgage|line of credit|overdraft|balance owed|what i owe|amex|visa|mastercard|discover)\b/,
+  contributionVerbs: /\b(?:add(?:ed)?|put|moved?|saved?|set aside|transfer(?:red)?|deposit(?:ed)?|contribut(?:ed|e)|stashed|stash|tucked away|threw|paid|pay|payment)\b/,
   contributionPreps: 'to|toward|towards|into|for|in',
   forWords: 'for',
   goalWords: 'goal',
@@ -139,5 +143,34 @@ export const en: LanguagePack = {
   noteStrip: [],
   singularForms,
   listSeparators: [',', ';', 'and', 'plus', 'also', 'then', 'and then', 'and also'],
+  reminder: {
+    lead: /\b(?:(?:can|could|would|will) you )?(?:please )?(?:remind (?:me|us)|set (?:a |an |up a )?(?:reminder|alarm|alert)|(?:i need|i want|i'd like|create|add|make) (?:a |an )?(?:reminder|alert)|reminder|don't let me forget|give me a heads[- ]up|ping me|nudge me)\b(?:\s+(?:to|that|about|for|of))?\s*:?/iu,
+    time: [
+      meridiemRule(['at', 'around', 'about', '@', 'by']),
+      clockRule(['at', 'around', 'about', '@', 'by'], { dayParts: { 'in the morning': 0, morning: 0, 'in the afternoon': 12, afternoon: 12, 'in the evening': 12, evening: 12, 'at night': 12, night: 12, tonight: 12 } }),
+      ...wordTimeRules({ morning: ['in the morning', 'morning', 'first thing'], noon: ['at noon', 'noon', 'midday', 'at lunch', 'lunchtime'], afternoon: ['in the afternoon', 'afternoon'], evening: ['in the evening', 'evening', 'tonight', 'at night', 'night', 'before bed'] }, { morning: 8, noon: 12, afternoon: 15, evening: 19 }),
+    ],
+    repeat: [
+      weeklyOnRule(['every', 'each', 'on every'], WEEKDAYS.names, { suffix: ['s'] }),
+      monthlyOnRule(/\b(?:on )?(?:the )?(\d{1,2}(?:st|nd|rd|th)?|first|fifteenth|last) (?:day )?of (?:every|each|the) month\b/iu, { ...ORDINAL_WORDS_EN, last: 31 }),
+      repeatWords(['every morning', 'each morning', 'mornings'], 'daily', 8),
+      repeatWords(['every evening', 'each evening', 'every night', 'each night', 'nightly', 'evenings'], 'daily', 20),
+      repeatWords(['every afternoon', 'each afternoon'], 'daily', 15),
+      repeatWords(['every day', 'each day', 'daily', 'everyday'], 'daily'),
+      repeatWords(['every week', 'each week', 'weekly', 'once a week'], 'weekly'),
+      repeatWords(['every month', 'each month', 'monthly', 'once a month'], 'monthly'),
+    ],
+    day: [
+      ISO_RULE,
+      dayWords(['the day after tomorrow', 'day after tomorrow'], 2),
+      dayWords(['tomorrow', 'tmrw'], 1),
+      dayWords(['today', 'later today', 'tonight', 'this evening', 'this afternoon', 'this morning'], 0),
+      futureWeekdayRule(WEEKDAYS.names, { pre: ['next', 'on next', 'this coming', 'coming', 'on', 'this', 'by'], nextWords: ['next', 'coming'] }),
+      monthDayRule(MONTHS, { pre: ['on', 'by'], ordinal: '(?:st|nd|rd|th)?', future: true }),
+      dayMonthRule(MONTHS, { pre: ['on', 'on the', 'the', 'by the'], between: ['of'], ordinal: '(?:st|nd|rd|th)?', future: true }),
+    ],
+    dayLate: [futureDayOfMonthRule(/\b(?:on |by )?the (\d{1,2}(?:st|nd|rd|th)|first|second|third|fourth|fifth|tenth|fifteenth|twentieth|thirtieth|thirty[- ]first|twenty[- ]first|twenty[- ]fifth)\b/iu, ORDINAL_WORDS_EN)],
+    strip: [/^(?:(?:to|that|about|for|of|please|and|also|then|i need to|i have to|i should|i must|i've got to|i gotta)\s+)+/iu, /(?:\s+(?:please|thanks|thank you|ok|okay))+$/iu],
+  },
   contextualStrings: ['dollars', 'bucks', 'groceries', 'rent', 'paycheck', 'goal', 'Netflix', 'Uber'],
 };
