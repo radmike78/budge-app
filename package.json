@@ -7,13 +7,14 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web",
+    "web": "node scripts/copy-pdf-worker.js && expo start --web",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "icons": "node scripts/generate-icons.js",
-    "build:web": "expo export --platform web --output-dir dist && node scripts/postbuild-web.js dist",
+    "build:web": "node scripts/copy-pdf-worker.js && expo export --platform web --output-dir dist && node scripts/postbuild-web.js dist",
     "check:web-security": "node scripts/web-security-check.mjs dist",
-    "audit": "npm audit --omit=dev"
+    "audit": "npm audit --omit=dev",
+    "postinstall": "node scripts/build-pdf-extractor.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -21,6 +22,7 @@
     "@noble/ciphers": "^2.4.0",
     "@noble/hashes": "^2.4.0",
     "expo": "~57.0.21",
+    "expo-asset": "~57.0.16",
     "expo-constants": "~57.0.17",
     "expo-crypto": "~57.0.2",
     "expo-document-picker": "~57.0.1",
@@ -38,6 +40,7 @@
     "expo-sqlite": "~57.0.2",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.3",
+    "pdfjs-dist": "^4.10.38",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-gesture-handler": "~2.32.0",
@@ -45,6 +48,7 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-web": "^0.21.2",
+    "react-native-webview": "^13.16.1",
     "react-native-worklets": "^0.10.1",
     "zustand": "^5.0.15"
   },

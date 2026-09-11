@@ -1,4 +1,4 @@
-import type { Category, CategoryTotal, Goal, KeywordMapping, MonthStats, RecurringRule, Reminder, ReminderRepeat, Settings, Transaction, TxType } from '@/types';
+import type { Category, CategoryTotal, Debt, DebtType, Goal, ImportRecord, KeywordMapping, MonthStats, RecurringRule, Reminder, ReminderRepeat, Settings, Transaction, TxType } from '@/types';
 import type { DB } from './database';
 import { monthRange } from '@/lib/dates';
 
@@ -38,10 +38,54 @@ const toSettings = (r: SettingsRow): Settings => ({
 
 export async function insertTransaction(db: DB, t: Transaction): Promise<void> {
   await db.runAsync(
-    `INSERT INTO transactions (id, amount, type, category_id, note, raw_input, occurred_at, created_at, is_recurring_instance, recurring_rule_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [t.id, t.amount, t.type, t.categoryId, t.note, t.rawInput, t.occurredAt, t.createdAt, t.isRecurringInstance ? 1 : 0, t.recurringRuleId],
+    `INSERT INTO transactions (id, amount, type, category_id, note, raw_input, occurred_at, created_at, is_recurring_instance, recurring_rule_id, fingerprint, import_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [t.id, t.amount, t.type, t.categoryId, t.note, t.rawInput, t.occurredAt, t.createdAt, t.isRecurringInstance ? 1 : 0, t.recurringRuleId, t.fingerprint ?? null, t.importId ?? null],
   );
+}
+
+/** Every fingerprint of an imported line, so a re-imported statement adds nothing twice. */
+export async function allFingerprints(db: DB): Promise<Set<string>> {
+  const rows = await db.getAllAsync<{ fingerprint: string }>('SELECT fingerprint FROM transactions WHERE fingerprint IS NOT NULL');
+  return new Set(rows.map((r) => r.fingerprint));
+}
+
+// ---------- imports & debts ----------
+
+type ImportRow = { id: string; kind: string; file_name: string; period_start: string | null; period_end: string | null; count: number; imported_at: string };
+const toImport = (r: ImportRow): ImportRecord => ({ id: r.id, kind: r.kind === 'card' || r.kind === 'credit_report' ? r.kind : 'bank', fileName: r.file_name, periodStart: r.period_start, periodEnd: r.period_end, count: r.count, importedAt: r.imported_at });
+
+export async function allImports(db: DB): Promise<ImportRecord[]> {
+  const rows = await db.getAllAsync<ImportRow>('SELECT * FROM imports ORDER BY imported_at DESC');
+  return rows.map(toImport);
+}
+
+export async function insertImport(db: DB, r: ImportRecord): Promise<void> {
+  await db.runAsync('INSERT INTO imports (id, kind, file_name, period_start, period_end, count, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [r.id, r.kind, r.fileName, r.periodStart, r.periodEnd, r.count, r.importedAt]);
+}
+
+const DEBT_TYPES: DebtType[] = ['credit_card', 'personal_loan', 'student_loan', 'auto_loan', 'mortgage', 'line_of_credit', 'other'];
+type DebtRow = { id: string; creditor: string; type: string; balance: number; monthly_payment: number | null; credit_limit: number | null; apr: number | null; source: string; updated_at: string };
+const toDebt = (r: DebtRow): Debt => ({
+  id: r.id, creditor: r.creditor, type: (DEBT_TYPES as string[]).includes(r.type) ? (r.type as DebtType) : 'other', balance: r.balance, monthlyPayment: r.monthly_payment, creditLimit: r.credit_limit, apr: r.apr,
+  source: r.source === 'credit_report' || r.source === 'card_statement' ? r.source : 'manual', updatedAt: r.updated_at,
+});
+
+export async function allDebts(db: DB): Promise<Debt[]> {
+  const rows = await db.getAllAsync<DebtRow>('SELECT * FROM debts ORDER BY balance DESC');
+  return rows.map(toDebt);
+}
+
+export async function upsertDebt(db: DB, d: Debt): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO debts (id, creditor, type, balance, monthly_payment, credit_limit, apr, source, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET creditor = excluded.creditor, type = excluded.type, balance = excluded.balance, monthly_payment = excluded.monthly_payment, credit_limit = excluded.credit_limit, apr = excluded.apr, source = excluded.source, updated_at = excluded.updated_at`,
+    [d.id, d.creditor, d.type, d.balance, d.monthlyPayment, d.creditLimit, d.apr, d.source, d.updatedAt],
+  );
+}
+
+export async function deleteDebt(db: DB, id: string): Promise<void> {
+  await db.runAsync('DELETE FROM debts WHERE id = ?', [id]);
 }
 
 export async function updateTransaction(db: DB, t: Transaction): Promise<void> {

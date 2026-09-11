@@ -73,6 +73,8 @@ export default function RootLayout() {
           <Stack.Screen name="settings/smart" options={{ title: t.smartParse }} />
           <Stack.Screen name="settings/keywords" options={{ title: t.learnedWords }} />
           <Stack.Screen name="settings/reminders" options={{ title: t.reminders }} />
+          <Stack.Screen name="import/index" options={{ title: t.importStatement }} />
+          <Stack.Screen name="debts/index" options={{ title: t.debts }} />
         </Stack.Protected>
       </Stack>
       </LockGate>
