@@ -13,6 +13,7 @@ const file = path.join(dist, 'index.html');
 let html = fs.readFileSync(file, 'utf8');
 
 const head = `
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com; worker-src 'self' blob:; manifest-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
     <meta name="description" content="Only a budget. Nothing else. No bank linking, no ads, no accounts." />
     <meta name="application-name" content="OnlyBudget" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -24,7 +25,7 @@ const head = `
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <style>html,body{background:#F7F6F3}@media(prefers-color-scheme:dark){html,body{background:#141412}}</style>
-    <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}</script>
+    <script src="/sw-register.js" defer></script>
 `;
 
 if (!html.includes('manifest.webmanifest')) {

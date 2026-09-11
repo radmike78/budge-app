@@ -28,7 +28,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "allowBackup": false,
+      "usesCleartextTraffic": false,
+      "blockedPermissions": []
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -63,6 +66,12 @@
           "dark": {
             "backgroundColor": "#141412"
           }
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "OnlyBudget can use Face ID to unlock the app if you turn the app lock on."
         }
       ]
     ],

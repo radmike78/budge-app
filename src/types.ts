@@ -84,6 +84,8 @@ export interface Settings {
   smartParseEnabled: boolean;
   /** 'system' or a language code ('en', 'es', ...). */
   language: string;
+  /** Ask for the phone's biometrics or passcode when the app opens. */
+  appLockEnabled: boolean;
 }
 
 /** A learned word -> category mapping, created when the user corrects a parsed category. */

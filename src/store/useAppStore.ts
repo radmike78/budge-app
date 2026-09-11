@@ -238,7 +238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!rule.active) continue;
       const { due, nextOccurrence } = dueOccurrences(rule, todayStr);
       if (due.length === 0) continue;
-      await db.withExclusiveTransactionAsync(async () => {
+      await db.withTransactionAsync(async () => {
         for (const date of due) {
           await repo.insertTransaction(db, {
             id: newId(),

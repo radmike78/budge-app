@@ -22,3 +22,10 @@ jobs:
         env:
           CI: 1
           EXPO_NO_TELEMETRY: 1
+      - name: Dependency audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Web build under Content-Security-Policy (headless Chromium)
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+          npm run check:web-security

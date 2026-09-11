@@ -9,6 +9,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Category, TxType } from '@/types';
 import type { ParseResult } from './index';
+import { validateAssistReply } from '@/lib/validate';
 
 export const LLM_MODEL = 'claude-opus-5';
 
@@ -65,10 +66,11 @@ export async function llmParse(
     if (response.stop_reason === 'refusal') return null;
     const text = response.content.find((b) => b.type === 'text')?.text;
     if (!text) return null;
-    const parsed = JSON.parse(text) as LlmParsed;
+    const parsed = validateAssistReply(JSON.parse(text));
+    if (!parsed) return null;
     const category = parsed.category ? active.find((c) => c.name.toLowerCase() === parsed.category!.toLowerCase()) : undefined;
     const out: Partial<ParseResult> = {
-      amount: parsed.amount != null && Number.isFinite(parsed.amount) ? Math.round(Math.abs(parsed.amount) * 100) / 100 : null,
+      amount: parsed.amount,
       type: parsed.type,
       typeConfidence: 0.8,
       categoryId: category?.id ?? null,

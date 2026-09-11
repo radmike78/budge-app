@@ -11,7 +11,9 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "icons": "node scripts/generate-icons.js",
-    "build:web": "expo export --platform web --output-dir dist && node scripts/postbuild-web.js dist"
+    "build:web": "expo export --platform web --output-dir dist && node scripts/postbuild-web.js dist",
+    "check:web-security": "node scripts/web-security-check.mjs dist",
+    "audit": "npm audit --omit=dev"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
@@ -25,6 +27,7 @@
     "expo-file-system": "~57.0.6",
     "expo-haptics": "~57.0.2",
     "expo-linking": "~57.0.9",
+    "expo-local-authentication": "~57.0.2",
     "expo-localization": "~57.0.1",
     "expo-notifications": "~57.0.17",
     "expo-router": "~57.0.20",

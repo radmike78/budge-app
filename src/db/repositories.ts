@@ -28,10 +28,10 @@ const toGoal = (r: GoalRow): Goal => ({
   id: r.id, name: r.name, kind: r.kind === 'debt' ? 'debt' : 'saving', targetAmount: r.target_amount, currentAmount: r.current_amount, targetDate: r.target_date, createdAt: r.created_at, completed: r.completed === 1,
 });
 
-type SettingsRow = { currency: string; theme: Settings['theme']; last_backup_at: string | null; starting_balance: number | null; onboarding_done: number; reminder_enabled: number; reminder_hour: number; smart_parse_enabled: number; language: string | null };
+type SettingsRow = { currency: string; theme: Settings['theme']; last_backup_at: string | null; starting_balance: number | null; onboarding_done: number; reminder_enabled: number; reminder_hour: number; smart_parse_enabled: number; language: string | null; app_lock: number | null };
 const toSettings = (r: SettingsRow): Settings => ({
   currency: r.currency, theme: r.theme, lastBackupAt: r.last_backup_at, startingBalance: r.starting_balance, onboardingDone: r.onboarding_done === 1,
-  reminderEnabled: r.reminder_enabled === 1, reminderHour: r.reminder_hour, smartParseEnabled: r.smart_parse_enabled === 1, language: r.language ?? 'system',
+  reminderEnabled: r.reminder_enabled === 1, reminderHour: r.reminder_hour, smartParseEnabled: r.smart_parse_enabled === 1, language: r.language ?? 'system', appLockEnabled: r.app_lock === 1,
 });
 
 // ---------- transactions ----------
@@ -223,8 +223,8 @@ export async function getSettings(db: DB): Promise<Settings> {
 
 export async function saveSettings(db: DB, s: Settings): Promise<void> {
   await db.runAsync(
-    `UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = ?, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ?, language = ? WHERE id = 1`,
-    [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.onboardingDone ? 1 : 0, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0, s.language ?? 'system'],
+    `UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = ?, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ?, language = ?, app_lock = ? WHERE id = 1`,
+    [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.onboardingDone ? 1 : 0, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0, s.language ?? 'system', s.appLockEnabled ? 1 : 0],
   );
 }
 
@@ -248,31 +248,31 @@ export async function replaceAllData(
   db: DB,
   data: { settings: Settings; categories: Category[]; transactions: Transaction[]; recurringRules: RecurringRule[]; goals: Goal[]; keywords: KeywordMapping[] },
 ): Promise<void> {
-  await db.withExclusiveTransactionAsync(async (txn) => {
-    await txn.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories;');
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories;');
     for (const c of data.categories) {
-      await txn.runAsync('INSERT INTO categories (id, name, icon, kind, monthly_limit, is_default, archived, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      await db.runAsync('INSERT INTO categories (id, name, icon, kind, monthly_limit, is_default, archived, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [c.id, c.name, c.icon, c.kind, c.monthlyLimit, c.isDefault ? 1 : 0, c.archived ? 1 : 0, c.sortOrder]);
     }
     for (const r of data.recurringRules) {
-      await txn.runAsync('INSERT INTO recurring_rules (id, amount, type, category_id, frequency, next_occurrence, note, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      await db.runAsync('INSERT INTO recurring_rules (id, amount, type, category_id, frequency, next_occurrence, note, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [r.id, r.amount, r.type, r.categoryId, r.frequency, r.nextOccurrence, r.note, r.active ? 1 : 0]);
     }
     for (const t of data.transactions) {
-      await txn.runAsync('INSERT INTO transactions (id, amount, type, category_id, note, raw_input, occurred_at, created_at, is_recurring_instance, recurring_rule_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      await db.runAsync('INSERT INTO transactions (id, amount, type, category_id, note, raw_input, occurred_at, created_at, is_recurring_instance, recurring_rule_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         [t.id, t.amount, t.type, t.categoryId, t.note, t.rawInput, t.occurredAt, t.createdAt, t.isRecurringInstance ? 1 : 0, t.recurringRuleId]);
     }
     for (const g of data.goals) {
-      await txn.runAsync('INSERT INTO goals (id, name, kind, target_amount, current_amount, target_date, created_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      await db.runAsync('INSERT INTO goals (id, name, kind, target_amount, current_amount, target_date, created_at, completed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [g.id, g.name, g.kind === 'debt' ? 'debt' : 'saving', g.targetAmount, g.currentAmount, g.targetDate, g.createdAt, g.completed ? 1 : 0]);
     }
     for (const k of data.keywords) {
-      await txn.runAsync('INSERT OR IGNORE INTO keyword_mappings (word, category_id) VALUES (?, ?)', [k.word, k.categoryId]);
+      await db.runAsync('INSERT OR IGNORE INTO keyword_mappings (word, category_id) VALUES (?, ?)', [k.word, k.categoryId]);
     }
     const s = data.settings;
-    await txn.runAsync(
-      'UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = 1, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ?, language = ? WHERE id = 1',
-      [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0, s.language ?? 'system'],
+    await db.runAsync(
+      'UPDATE settings SET currency = ?, theme = ?, last_backup_at = ?, starting_balance = ?, onboarding_done = 1, reminder_enabled = ?, reminder_hour = ?, smart_parse_enabled = ?, language = ?, app_lock = ? WHERE id = 1',
+      [s.currency, s.theme, s.lastBackupAt, s.startingBalance, s.reminderEnabled ? 1 : 0, s.reminderHour, s.smartParseEnabled ? 1 : 0, s.language ?? 'system', s.appLockEnabled ? 1 : 0],
     );
   });
 }

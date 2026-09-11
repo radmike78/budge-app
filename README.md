@@ -115,6 +115,10 @@ Every parse produces a confidence and plain hints ("Not sure about the category.
 
 **Learning**: when the user changes the category on the confirmation card, the meaningful words of the phrase are stored in `keyword_mappings` and take priority next time. They can be reviewed and removed under Settings → Learned words.
 
+## Security
+
+No server, no account, no bank link, no analytics. Every trust boundary (typed or spoken entries, imported backups, Smart Assist replies, the web build's browser sandbox) is validated and covered by attack-style tests in `__tests__/security.test.ts`, following the OWASP Mobile Top 10 and MASVS. Optional app lock with Face ID / fingerprint / passcode, Android cloud backup off, HTTPS only, and a strict Content-Security-Policy on the web build verified in headless Chromium (`npm run check:web-security`). Details: [docs/SECURITY.md](docs/SECURITY.md).
+
 ## Data
 
 SQLite schema in `src/db/database.ts` (versioned with `PRAGMA user_version`; v2 adds `settings.language`, v3 adds `goals.kind` and `reminders`). Tables: `transactions`, `categories` (with a `kind` column and optional `monthly_limit`), `recurring_rules`, `goals` (`kind` is `saving` or `debt`), `reminders` (text, due time, repeat, scheduled notification id), `settings` (single row), `keyword_mappings`.

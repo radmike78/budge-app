@@ -28,7 +28,7 @@ describe('summaryText', () => {
 });
 
 describe('backup round trip', () => {
-  const settings: Settings = { currency: 'USD', theme: 'system', lastBackupAt: null, startingBalance: null, onboardingDone: true, reminderEnabled: false, reminderHour: 20, smartParseEnabled: false, language: 'system' };
+  const settings: Settings = { currency: 'USD', theme: 'system', lastBackupAt: null, startingBalance: null, onboardingDone: true, reminderEnabled: false, reminderHour: 20, smartParseEnabled: false, appLockEnabled: false, language: 'system' };
   const payload = buildBackup({ settings, categories: DEFAULT_CATEGORIES, transactions: tx, recurringRules: [], goals: [], keywords: [] }, '2026-09-10T00:00:00.000Z');
 
   it('validates payloads', () => {

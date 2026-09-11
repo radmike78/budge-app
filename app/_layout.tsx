@@ -10,6 +10,7 @@ import { useTheme } from '@/theme';
 import { configureNotificationHandler } from '@/lib/reminders';
 import { useT } from '@/i18n';
 import { Text } from '@/components/ui';
+import { LockGate } from '@/components/LockGate';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 configureNotificationHandler();
@@ -46,6 +47,7 @@ export default function RootLayout() {
     );
   } else {
     body = (
+      <LockGate>
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },
@@ -73,6 +75,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings/reminders" options={{ title: t.reminders }} />
         </Stack.Protected>
       </Stack>
+      </LockGate>
     );
   }
 
