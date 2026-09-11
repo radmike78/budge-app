@@ -8,6 +8,7 @@ import { balanceSentence, goalProgress, monthSummarySentence, topCategorySentenc
 import { categoryName, useLocale, useMoney, useT } from '@/i18n';
 import { EntryBar } from '@/components/EntryBar';
 import { ConfirmationCard } from '@/components/ConfirmationCard';
+import { MultiConfirmationCard } from '@/components/MultiConfirmationCard';
 import { TransactionRow } from '@/components/TransactionRow';
 import { useEntryFlow } from '@/components/useEntryFlow';
 import { Button, Card, EmptyState, Row, Screen, SectionTitle, Spacer, Text } from '@/components/ui';
@@ -26,7 +27,7 @@ export default function HomeScreen() {
   const recent = useAppStore((s) => s.recent);
   const goals = useAppStore((s) => s.goals);
   const lifetime = useAppStore((s) => s.lifetime);
-  const { pending, busy, submit, dismiss } = useEntryFlow();
+  const { pending, pendingMany, busy, submit, dismiss } = useEntryFlow();
   const [toast, setToast] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
@@ -94,6 +95,7 @@ export default function HomeScreen() {
       <Spacer size={spacing.xl} />
 
       <ConfirmationCard result={pending} onCancel={dismiss} onDone={(msg) => { dismiss(); setToast(msg); }} />
+      <MultiConfirmationCard results={pendingMany} onCancel={dismiss} onDone={(msg) => { dismiss(); setToast(msg); }} />
     </Screen>
   );
 }

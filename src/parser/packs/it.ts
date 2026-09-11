@@ -106,5 +106,6 @@ export const it: LanguagePack = {
   leadingFiller: /^(?:(?:ho|hai|ha|oggi|ieri|beh|anche|ancora|speso|pagato|comprato|spesa|acquisto|preso|in|di|del|della|dei|delle|per|con|a|al|alla|il|lo|la|i|gli|le|un|uno|una|mio|mia|mi|ci|circa|più o meno|tipo|quasi|un altro|un'altra)\s+|(?:l'|d'|un'|dell'|all')(?=\p{L}))+/u,
   trailingFiller: /(?:\s+(?:oggi|ieri|in|di|del|della|per|con|a|al|alla|il|lo|la|i|gli|le|un|uno|una|e|ogni|totale|ancora|anche|per favore|grazie|questo|questa|quello|circa|più o meno))+$/u,
   noteStrip: [],
+  listSeparators: [',', ';', 'e', 'ed', 'più', 'poi', 'e poi', 'e anche', 'anche'],
   contextualStrings: ['euro', 'spesa', 'affitto', 'stipendio', 'obiettivo', 'Netflix', 'Uber', 'pranzo'],
 };

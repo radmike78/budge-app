@@ -2,17 +2,19 @@ import { useCallback, useState } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 import { today } from '@/lib/dates';
 import { getApiKey } from '@/lib/secrets';
-import { parseInput, type ParseResult } from '@/parser';
+import { parseEntries, type ParseResult } from '@/parser';
 import { llmParse } from '@/parser/llmFallback';
 import { resolveLanguage } from '@/i18n';
 import { HINT } from '@/parser';
 
 /**
  * Text and voice both land here: parse (Tier 1), optionally escalate (Tier 2),
- * then hand the result to the confirmation card. Nothing is saved silently.
+ * then hand the result to a confirmation card. One expense goes to the single
+ * card; several in one utterance go to the multi-entry card. Nothing is saved silently.
  */
 export function useEntryFlow() {
   const [pending, setPending] = useState<ParseResult | null>(null);
+  const [pendingMany, setPendingMany] = useState<ParseResult[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = useCallback(async (raw: string) => {
@@ -20,7 +22,14 @@ export function useEntryFlow() {
     if (!text) return;
     const { categories, goals, keywordMap, settings } = useAppStore.getState();
     const ctx = { categories, goals, keywordMap, today: today(), language: resolveLanguage(settings?.language) };
-    let result = parseInput(text, ctx);
+    const entries = parseEntries(text, ctx);
+    if (entries.length > 1) {
+      // Several expenses in one go: each becomes its own row on the card.
+      setPending(null);
+      setPendingMany(entries.map((e) => (e.kind === 'unknown' ? { ...e, kind: 'transaction' as const } : e)));
+      return;
+    }
+    let result = entries[0];
 
     if (result.needsReview && settings?.smartParseEnabled) {
       setBusy(true);
@@ -46,10 +55,11 @@ export function useEntryFlow() {
       }
     }
     if (result.kind === 'unknown') result = { ...result, kind: 'transaction' };
+    setPendingMany(null);
     setPending(result);
   }, []);
 
-  const dismiss = useCallback(() => setPending(null), []);
+  const dismiss = useCallback(() => { setPending(null); setPendingMany(null); }, []);
 
-  return { pending, busy, submit, dismiss };
+  return { pending, pendingMany, busy, submit, dismiss };
 }

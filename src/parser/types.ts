@@ -56,6 +56,8 @@ export interface LanguagePack {
   singularForms?: (word: string) => string[];
   /** Short phrases the recognizer should bias toward. */
   contextualStrings: string[];
+  /** Separators between several entries in one sentence ("and", ",", "y", "und", "和"). Regex alternatives. */
+  listSeparators: string[];
 }
 
 export type KeywordEntry = { categoryId: string; kind: TxType };

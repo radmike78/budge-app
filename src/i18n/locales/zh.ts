@@ -107,6 +107,12 @@ export const zh: LocaleDef = {
     toastGoalSet: (amount, name, by) => `目标已设定：${name} ${amount}${by ? `，${by}前` : ''}。`,
     toastAdded: (amount, goal) => `已向 ${goal} 存入 ${amount}。`,
     toastLogged: (amount, isIncome, category) => `已记录${isIncome ? '收入' : '支出'} ${amount} · ${category}。`,
+    // several entries in one go
+    multiTitle: (n: number) => `${n} 条记录`,
+    multiIntro: '请逐条检查，然后一起保存。点一下分类可以修改。',
+    saveAll: '全部保存',
+    entryRemoved: '已移除，没有保存任何内容。',
+    toastLoggedMany: (n: number, out: string | null, inc: string | null) => `已记录 ${n} 条${out ? ` · 支出 ${out}` : ''}${inc ? ` · 收入 ${inc}` : ''}。`,
     toward: (goal) => `存入 ${goal}`,
     thisMonth: '本月',
     goals: '目标',

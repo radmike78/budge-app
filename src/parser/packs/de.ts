@@ -112,5 +112,6 @@ export const de: LanguagePack = {
   leadingFiller: /^(?:(?:ich|wir|habe|hab|haben|hat|heute|gestern|also|auch|nochmal|ausgegeben|bezahlt|gezahlt|gekauft|ausgabe|kauf|für|von|vom|mit|zu|zum|zur|in|im|an|am|auf|bei|beim|der|die|das|den|dem|ein|eine|einen|einem|einer|mein|meine|meinen|mir|mich|uns|etwa|ungefähr|circa|ca|noch|einmal|so|mal|grad|gerade|eben)\s+)+/,
   trailingFiller: /(?:\s+(?:heute|gestern|für|von|mit|zu|zum|zur|in|im|an|am|auf|bei|der|die|das|den|ein|eine|und|jeder|jede|gesamt|nochmal|auch|bitte|danke|es|dies|ausgegeben|bezahlt|gezahlt|gekauft|gekostet|gegangen|gewesen|geholt|bestellt|etwa|ungefähr|circa|ca|rum|so))+$/,
   noteStrip: [],
+  listSeparators: [',', ';', 'und', 'plus', 'dann', 'und dann', 'außerdem', 'und noch', 'sowie'],
   contextualStrings: ['Euro', 'Einkauf', 'Miete', 'Gehalt', 'Ziel', 'Netflix', 'Uber', 'Mittagessen'],
 };

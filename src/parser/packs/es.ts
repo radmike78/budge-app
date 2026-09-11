@@ -94,5 +94,6 @@ export const es: LanguagePack = {
   leadingFiller: /^(?:(?:hoy|ayer|pues|bueno|también|otra|vez|gasté|gaste|pagué|pague|compré|compre|gasto|pago|compra|en|de|del|por|para|con|a|al|el|la|los|las|un|una|unos|unas|mi|mis|me|se|he|ha|fui|otro|otra|unos|casi|como|aprox|aproximadamente|más o menos|mas o menos)\s+)+/,
   trailingFiller: /(?:\s+(?:hoy|ayer|en|de|del|por|para|con|a|al|el|la|los|las|un|una|y|cada|total|otra vez|también|por favor|gracias|eso|esto|más o menos|mas o menos|aprox))+$/,
   noteStrip: [],
+  listSeparators: [',', ';', 'y', 'e', 'más', 'mas', 'también', 'luego', 'y luego', 'y también'],
   contextualStrings: ['euros', 'dólares', 'pesos', 'supermercado', 'alquiler', 'nómina', 'meta', 'Netflix', 'Uber'],
 };

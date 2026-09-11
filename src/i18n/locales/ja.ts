@@ -107,6 +107,12 @@ export const ja: LocaleDef = {
     toastGoalSet: (amount, name, by) => `目標を設定：${name}に${amount}${by ? `（${by}まで）` : ''}。`,
     toastAdded: (amount, goal) => `${goal}に${amount}を追加しました。`,
     toastLogged: (amount, isIncome, category) => `${isIncome ? '収入' : '支出'} ${amount}を記録 · ${category}。`,
+    // several entries in one go
+    multiTitle: (n: number) => `${n}件の記録`,
+    multiIntro: 'それぞれ確認してから、まとめて保存します。カテゴリをタップして変更できます。',
+    saveAll: 'すべて保存',
+    entryRemoved: '削除しました。何も保存されていません。',
+    toastLoggedMany: (n: number, out: string | null, inc: string | null) => `${n}件を記録${out ? ` · 支出 ${out}` : ''}${inc ? ` · 収入 ${inc}` : ''}。`,
     toward: (goal) => `${goal}へ`,
     thisMonth: '今月',
     goals: '目標',
