@@ -6,6 +6,7 @@ import { parseEntries, type ParseResult } from '@/parser';
 import { llmParse } from '@/parser/llmFallback';
 import { resolveLanguage } from '@/i18n';
 import { HINT } from '@/parser';
+import { cleanEntry } from '@/lib/validate';
 
 /**
  * Text and voice both land here: parse (Tier 1), optionally escalate (Tier 2),
@@ -18,7 +19,7 @@ export function useEntryFlow() {
   const [busy, setBusy] = useState(false);
 
   const submit = useCallback(async (raw: string) => {
-    const text = raw.trim();
+    const text = cleanEntry(raw);
     if (!text) return;
     const { categories, goals, keywordMap, settings } = useAppStore.getState();
     const now = new Date();

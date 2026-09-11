@@ -68,14 +68,33 @@ export function encryptBackup(plaintextJson: string, passphrase: string, randomB
   };
 }
 
+const B64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+/** Bounds on the key-derivation cost a file may ask for, so a hostile file cannot exhaust memory or time. */
+const KDF_LIMITS = { minN: 2 ** 14, maxN: 2 ** 20, maxR: 16, maxP: 4 };
+
+/**
+ * True only for a well-formed file of the one format this app writes. Anything
+ * else (other ciphers, missing salt, out-of-range scrypt cost) is not decrypted.
+ */
 export function isEncryptedBackupFile(x: unknown): x is EncryptedBackupFile {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return o.app === 'onlybudget' && o.format === 'encrypted-backup' && typeof o.ciphertext === 'string' && typeof o.nonce === 'string';
+  if (o.app !== 'onlybudget' || o.format !== 'encrypted-backup' || o.cipher !== 'xchacha20poly1305') return false;
+  if (typeof o.ciphertext !== 'string' || !B64_RE.test(o.ciphertext) || o.ciphertext.length > 200 * 1024 * 1024) return false;
+  if (typeof o.nonce !== 'string' || !B64_RE.test(o.nonce) || o.nonce.length !== 32) return false;
+  const kdf = o.kdf as Record<string, unknown> | undefined;
+  if (!kdf || typeof kdf !== 'object' || kdf.name !== 'scrypt') return false;
+  if (typeof kdf.salt !== 'string' || !B64_RE.test(kdf.salt) || kdf.salt.length < 16 || kdf.salt.length > 64) return false;
+  const { N, r, p } = kdf;
+  if (typeof N !== 'number' || typeof r !== 'number' || typeof p !== 'number') return false;
+  if (!Number.isInteger(N) || N < KDF_LIMITS.minN || N > KDF_LIMITS.maxN || (N & (N - 1)) !== 0) return false;
+  if (!Number.isInteger(r) || r < 1 || r > KDF_LIMITS.maxR || !Number.isInteger(p) || p < 1 || p > KDF_LIMITS.maxP) return false;
+  return true;
 }
 
 /** Throws if the passphrase is wrong or the file was tampered with. */
 export function decryptBackup(file: EncryptedBackupFile, passphrase: string): string {
+  if (!isEncryptedBackupFile(file)) throw new Error('Not an OnlyBudget encrypted backup');
   const salt = base64ToBytes(file.kdf.salt);
   const key = scrypt(utf8ToBytes(passphrase.normalize('NFKC')), salt, { N: file.kdf.N, r: file.kdf.r, p: file.kdf.p, dkLen: 32 });
   const nonce = base64ToBytes(file.nonce);

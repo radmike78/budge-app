@@ -102,15 +102,17 @@ const MIGRATIONS: string[] = [
     notification_id TEXT,
     created_at TEXT NOT NULL
   );`,
+  // v4: optional app lock (biometrics / device passcode on open).
+  `ALTER TABLE settings ADD COLUMN app_lock INTEGER DEFAULT 0;`,
 ];
 
 async function migrate(db: DB): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let version = row?.user_version ?? 0;
   for (let i = version; i < MIGRATIONS.length; i += 1) {
-    await db.withExclusiveTransactionAsync(async (txn) => {
-      await txn.execAsync(MIGRATIONS[i]);
-      await txn.execAsync(`PRAGMA user_version = ${i + 1}`);
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(MIGRATIONS[i]);
+      await db.execAsync(`PRAGMA user_version = ${i + 1}`);
     });
     version = i + 1;
   }
@@ -130,9 +132,9 @@ async function seedDefaultCategories(db: DB): Promise<void> {
 
 /** Test/reset helper: wipes every table and re-seeds defaults. */
 export async function resetDatabase(db: DB): Promise<void> {
-  await db.withExclusiveTransactionAsync(async (txn) => {
-    await txn.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories; DELETE FROM reminders;');
-    await txn.execAsync("UPDATE settings SET currency='USD', theme='system', last_backup_at=NULL, starting_balance=NULL, reminder_enabled=0, reminder_hour=20, smart_parse_enabled=0, language='system' WHERE id=1");
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM transactions; DELETE FROM recurring_rules; DELETE FROM goals; DELETE FROM keyword_mappings; DELETE FROM categories; DELETE FROM reminders;');
+    await db.execAsync("UPDATE settings SET currency='USD', theme='system', last_backup_at=NULL, starting_balance=NULL, reminder_enabled=0, reminder_hour=20, smart_parse_enabled=0, language='system' WHERE id=1");
   });
   await seedDefaultCategories(db);
 }

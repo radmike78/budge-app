@@ -1,7 +1,7 @@
 /* OnlyBudget service worker: cache the app shell so the web version opens offline.
    Data never goes through here; SQLite lives in the browser's own storage. */
 const CACHE = 'onlybudget-shell-v1';
-const PRECACHE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
+const PRECACHE = ['/', '/sw-register.js', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));

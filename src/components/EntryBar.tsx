@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { MAX_ENTRY_LENGTH } from '@/lib/validate';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { radius, spacing, useTheme } from '@/theme';
@@ -57,6 +58,7 @@ export function EntryBar({ onSubmit, busy, autoFocus }: { onSubmit: (text: strin
           placeholder={voice.listening ? t.listening : t.entryPlaceholder}
           placeholderTextColor={colors.faint}
           accessibilityLabel={t.entryText}
+          maxLength={MAX_ENTRY_LENGTH}
           style={[styles.input, { color: colors.text }]}
         />
         {text.trim().length > 0 && !voice.listening ? (

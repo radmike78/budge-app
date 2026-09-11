@@ -6,7 +6,8 @@ import { allTransactions } from '@/db/repositories';
 import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
 import { nowIso } from '@/lib/dates';
-import { buildBackup, isBackupPayload, summaryText, transactionsToCsv } from '@/lib/export';
+import { buildBackup, summaryText, transactionsToCsv } from '@/lib/export';
+import { BackupValidationError, MAX_BACKUP_BYTES, MIN_PASSPHRASE_LENGTH, validateBackup } from '@/lib/validate';
 import { decryptBackup, encryptBackup, isEncryptedBackupFile } from '@/lib/backupCrypto';
 import { pickTextFile, shareTextFile, timestampForFilename } from '@/lib/files';
 import { categoryName, useLocale, useT } from '@/i18n';
@@ -74,7 +75,7 @@ export default function Backup() {
   });
 
   const exportEncrypted = () => run('encrypted', async () => {
-    if (pass.length < 6) throw new Error(t.passphraseShort);
+    if (pass.length < MIN_PASSPHRASE_LENGTH) throw new Error(t.passphraseShort);
     if (pass !== pass2) throw new Error(t.passphraseMismatch);
     const payload = await snapshot();
     const file = encryptBackup(JSON.stringify(payload), pass, (n) => Crypto.getRandomBytes(n));
@@ -85,17 +86,32 @@ export default function Backup() {
   });
 
   const applyRestore = async (payload: unknown) => {
-    if (!isBackupPayload(payload)) throw new Error(t.notBackupFile);
-    const ok = await confirmDialog(t.replaceEverythingQ, t.replaceEverythingBody(payload.transactions.length, payload.goals.length), { confirmText: t.restore, cancelText: t.cancel, destructive: true });
+    let data: ReturnType<typeof validateBackup>;
+    try {
+      data = validateBackup(payload, nowIso());
+    } catch (e) {
+      if (e instanceof BackupValidationError) throw new Error(t.notBackupFile);
+      throw e;
+    }
+    const ok = await confirmDialog(t.replaceEverythingQ, t.replaceEverythingBody(data.transactions.length, data.goals.length), { confirmText: t.restore, cancelText: t.cancel, destructive: true });
     if (!ok) throw new Error(t.cancelled);
-    await restoreAll({ settings: { ...payload.settings, onboardingDone: true, language: payload.settings.language ?? 'system' }, categories: payload.categories, transactions: payload.transactions, recurringRules: payload.recurringRules ?? [], goals: payload.goals, keywords: payload.keywords ?? [] });
-    return t.restored(payload.transactions.length);
+    await restoreAll({ ...data, settings: { ...data.settings, smartParseEnabled: settings.smartParseEnabled, appLockEnabled: settings.appLockEnabled } });
+    return t.restored(data.transactions.length);
+  };
+
+  const parseFile = (text: string): unknown => {
+    if (text.length > MAX_BACKUP_BYTES) throw new Error(t.notBackupFile);
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(t.notBackupFile);
+    }
   };
 
   const restore = () => run('restore', async () => {
     const picked = await pickTextFile();
     if (!picked) return t.noFileChosen;
-    const parsed = JSON.parse(picked.text) as unknown;
+    const parsed = parseFile(picked.text);
     if (isEncryptedBackupFile(parsed)) {
       setAskPass({ mode: 'decrypt', file: parsed });
       return t.enterPassphraseToContinue;
@@ -112,7 +128,7 @@ export default function Backup() {
       throw new Error(t.wrongPassphrase);
     }
     setAskPass(null); setPass('');
-    return applyRestore(JSON.parse(json));
+    return applyRestore(parseFile(json));
   });
 
   return (

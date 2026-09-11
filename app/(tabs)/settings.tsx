@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { spacing, useTheme } from '@/theme';
 import { CURRENCIES, currencyInfo } from '@/lib/money';
 import { cancelDailyReminder, scheduleDailyReminder } from '@/lib/reminders';
+import { authenticate, canUseAppLock } from '@/lib/appLock';
 import { triggerOfflineModelDownload } from '@/lib/speech';
 import { LANGUAGE_OPTIONS, useLanguageCode, useT } from '@/i18n';
 import { notify } from '@/lib/dialogs';
@@ -42,6 +43,14 @@ export default function SettingsScreen() {
       await cancelDailyReminder();
     }
     await updateSettings({ reminderEnabled: on });
+  };
+
+  const toggleAppLock = async (on: boolean) => {
+    if (on) {
+      if (!(await canUseAppLock())) { notify(t.appLock, t.appLockUnavailable); return; }
+      if (!(await authenticate(t.unlockPrompt, t.cancel))) return;
+    }
+    await updateSettings({ appLockEnabled: on });
   };
 
   const changeHour = async (delta: number) => {
@@ -84,6 +93,15 @@ export default function SettingsScreen() {
             <Button tone="secondary" small title="+1h" onPress={() => changeHour(1)} />
           </Row>
         ) : null}
+      </Card> : null}
+      {Platform.OS !== 'web' ? <Card style={{ marginBottom: spacing.sm }}>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <View style={{ flex: 1, paddingRight: spacing.md }}>
+            <Text variant="body">{t.appLock}</Text>
+            <Text variant="small">{t.appLockSub}</Text>
+          </View>
+          <Switch value={settings.appLockEnabled} onValueChange={toggleAppLock} trackColor={{ true: colors.accent }} />
+        </Row>
       </Card> : null}
       {Platform.OS === 'android' ? (
         <ListItem title={t.offlineVoice} subtitle={t.offlineVoiceSub} onPress={async () => notify(t.voiceModel, await triggerOfflineModelDownload(languageCode))} />
